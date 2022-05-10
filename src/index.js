@@ -7,11 +7,51 @@
 // @match        https://ddrk.me/*
 // @icon         https://ddrk.me/favicon-32x32.png
 // @grant        unsafeWindow
+// @grant        GM_listValues
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_addValueChangeListener
+// @grant        GM_registerMenuCommand
 // @require      https://cdn.bootcdn.net/ajax/libs/jquery/3.6.0/jquery.js
 // ==/UserScript==
 
 (function () {
   "use strict";
+  const Store = {
+    setValue: function (key, value) {
+      GM_setValue(key, value);
+    },
+    getValue: function (key) {
+      return GM_getValue(key) || localStorage.getItem(key);
+    },
+    listValues: function () {
+      return GM_listValues();
+    },
+    getLocalStorageData: function () {
+      var len = localStorage.length; // 获取长度
+      var arr = new Array(); // 定义数据集
+      for (var i = 0; i < len; i++) {
+        // 获取key 索引从0开始
+        var getKey = localStorage.key(i);
+        // 获取key对应的值
+        var getVal = localStorage.getItem(getKey);
+        // 放进数组
+        arr[i] = {
+          key: getKey,
+          val: getVal,
+        };
+      }
+      return arr;
+    },
+  };
+  const Common = {
+    //参数time为休眠时间，单位为毫秒:
+    sleep: function (time) {
+      return new Promise((resolve) => {
+        setTimeout(resolve, time);
+      });
+    },
+  };
   /*去广告*/
   $(".cfa_popup").css({ height: "0px" });
   $("#iaujwnefhw").css({ height: "0", overflow: "hidden" });
@@ -19,12 +59,12 @@
 
   const styleStr = `<style>
     .ddrk-tools__modal {
-      position: absolute,
-      left: 0,
-      top: 0,
-      right: 0,
-      bottom: 0,
-      text-align: right,
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      text-align: right;
     }
     .btn_col-default {
       position: absolute;
@@ -127,20 +167,18 @@
         name: name.indexOf("(") > -1 ? name.split("(")[0] : name,
         href,
       });
-      window.localStorage.setItem("ddrk-collection", JSON.stringify(colList));
+      Store.setValue("ddrk-collection", JSON.stringify(colList));
     }
-    reloadCollect(1, $(this));
-    reloadColList();
+    reloadCollectHtml(1, $(this));
   });
   $(".post-box").on("click", ".btn_col-remove", function (e) {
     const href = $(this).parent().parent().data("href");
     const index = colList.findIndex((item) => item.href === href);
     if (index !== -1) {
       colList.splice(index, 1);
-      window.localStorage.setItem("ddrk-collection", JSON.stringify(colList));
+      Store.setValue("ddrk-collection", JSON.stringify(colList));
     }
-    reloadCollect(0, $(this));
-    reloadColList();
+    reloadCollectHtml(0, $(this));
   });
   $(".post-box").on("click", ".ddrk-tools__modal", function (e) {
     window.open($(this).parent().data("href"));
@@ -155,21 +193,26 @@
     const index = colList.findIndex((item) => item.href === href);
     if (index !== -1) {
       colList.splice(index, 1);
-      window.localStorage.setItem("ddrk-collection", JSON.stringify(colList));
+      Store.setValue("ddrk-collection", JSON.stringify(colList));
     }
-    reloadCollect();
-    reloadColList();
+    reloadCollectHtml();
     e.stopPropagation();
   });
+  GM_addValueChangeListener(
+    "ddrk-collection",
+    function (name, oldValue, newValue, remote) {
+      reloadColList();
+    }
+  );
   document.addEventListener("visibilitychange", function () {
-    console.log("-----------", document.visibilityState);
+    // console.log("-----------", document.visibilityState);
     if (document.visibilityState == "hidden") {
       //切离该页面时执行
       // 标签隐藏时自动暂停播放（待开发）
     } else if (document.visibilityState == "visible") {
       //切换到该页面时执行
-      initCollection();
-      initHistory();
+      // 刷新历史记录-因为需要和localStorage对比
+      reloadHistoryList();
     }
   });
 
@@ -203,6 +246,7 @@
   /**
    * 蒙层及收藏按钮
    */
+  let colList = [];
   const modal = $("<div  class='ddrk-tools__modal'></div>");
   const colButton = $('<span class="btn_col-default btn_col-remove">★</span>');
   $(".post-box").each(function () {
@@ -215,7 +259,7 @@
     modal.html(tempBtn);
     $(this).append(modal.clone(true));
   });
-  function reloadCollect(tag, tempBtn) {
+  function reloadCollectHtml(tag, tempBtn) {
     if (tempBtn) {
       if (tag === 0) {
         tempBtn.addClass("btn_col-add");
@@ -245,10 +289,9 @@
   /**
    * 收藏列表
    */
-  let colList = [];
   let colUl = null;
   function initCollection() {
-    const jsonText = window.localStorage.getItem("ddrk-collection");
+    const jsonText = Store.getValue("ddrk-collection");
     if (jsonText) {
       colList = JSON.parse(jsonText);
     }
@@ -296,28 +339,7 @@
    * 历史记录功能
    */
   let historyUl = null;
-  async function initHistory() {
-    const jsonText = window.localStorage.getItem("ddrk-history");
-    let jsonList = [];
-    if (jsonText) {
-      jsonList = JSON.parse(jsonText);
-    }
-
-    const localData = getLocalStorageData();
-    const his = formatLocalData(localData);
-    const filterList = filterLocalData(his);
-    let res = compareLocalData(jsonList, filterList);
-    // console.log("history-----------------", his);
-    for (const item of res) {
-      if (!item.name) {
-        const name = await getDramaName(item.url);
-        item.name = name.indexOf("(") > -1 ? name.split("(")[0] : name;
-      }
-    }
-    // 过滤name不存在的
-    res = res.filter((item) => item.name);
-    // console.log("result----------------", res);
-    window.localStorage.setItem("ddrk-history", JSON.stringify(res));
+  function initHistory() {
     const arrowIcon = $(
       '  <svg class="col_list_arrow" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" ><path fill="currentColor" d="M529.408 149.376a29.12 29.12 0 0 1 41.728 0 30.592 30.592 0 0 1 0 42.688L259.264 511.936l311.872 319.936a30.592 30.592 0 0 1-.512 43.264 29.12 29.12 0 0 1-41.216-.512L197.76 534.272a32 32 0 0 1 0-44.672l331.648-340.224zm256 0a29.12 29.12 0 0 1 41.728 0 30.592 30.592 0 0 1 0 42.688L515.264 511.936l311.872 319.936a30.592 30.592 0 0 1-.512 43.264 29.12 29.12 0 0 1-41.216-.512L453.76 534.272a32 32 0 0 1 0-44.672l331.648-340.224z"  ></path></svg>;'
     );
@@ -332,22 +354,32 @@
         title: "观看记录",
         icon: hisIcon,
       });
-    reloadHistoryList(res);
+    reloadHistoryList();
   }
   initHistory();
   // 对比
   function compareLocalData(myList, ddrkList) {
-    return ddrkList.map((ddrkItem) => {
-      const innerItem =
-        myList.find(
+    // 差集
+    const minus = ddrkList.filter(
+      (ddrkItem) =>
+        !myList.some(
           (item) =>
             item.enName === ddrkItem.enName && item.season === ddrkItem.season
+        )
+    );
+    // console.log("-----差集-----", minus);
+    const resultList = myList.map((innerItem) => {
+      const ddrkItem =
+        ddrkList.find(
+          (item) =>
+            item.enName === innerItem.enName && item.season === innerItem.season
         ) || {};
       return {
         ...innerItem,
         ...ddrkItem,
       };
     });
+    return [...minus, ...resultList];
   }
   // 格式化
   function formatLocalData(local) {
@@ -388,22 +420,6 @@
     }, []);
     return result;
   }
-  function getLocalStorageData() {
-    var len = localStorage.length; // 获取长度
-    var arr = new Array(); // 定义数据集
-    for (var i = 0; i < len; i++) {
-      // 获取key 索引从0开始
-      var getKey = localStorage.key(i);
-      // 获取key对应的值
-      var getVal = localStorage.getItem(getKey);
-      // 放进数组
-      arr[i] = {
-        key: getKey,
-        val: getVal,
-      };
-    }
-    return arr;
-  }
   function getDramaName(url) {
     return new Promise((resolve, reject) => {
       // $.get(`https://ddrk.me${url}`, function (result) {
@@ -428,9 +444,31 @@
       });
     });
   }
-  function reloadHistoryList(hisList) {
+  async function reloadHistoryList() {
+    const jsonText = Store.getValue("ddrk-history");
+    let jsonList = [];
+    if (jsonText) {
+      jsonList = JSON.parse(jsonText);
+    }
+
+    const localData = Store.getLocalStorageData();
+    const his = formatLocalData(localData);
+    const filterList = filterLocalData(his);
+    let res = compareLocalData(jsonList, filterList);
+    // console.log("history-----------------", his);
+    for (const item of res) {
+      if (!item.name) {
+        const name = await getDramaName(item.url);
+        item.name = name.indexOf("(") > -1 ? name.split("(")[0] : name;
+      }
+    }
+    // 过滤name不存在的
+    res = res.filter((item) => item.name);
+    // console.log("result----------------", res);
+    Store.setValue("ddrk-history", JSON.stringify(res));
+    // ui修改
     historyUl.html("");
-    hisList.forEach((item, index) => {
+    res.forEach((item, index) => {
       const li = $(
         "<li class='col_item' style='word-break: break-all;' ></li>"
       );
@@ -472,7 +510,84 @@
   /**
    * 自动跳转并播放下一集
    */
-  function handleNext(params) {
-    window.videojs.getAllPlayers()[0].controlBar.children_[1].handleClick();
-  }
+  const autoPlayNext = {
+    player: null,
+    playerModel: {},
+    init() {
+      this.initPlayer();
+      this.bindEvent();
+    },
+    initPlayer() {
+      this.player = unsafeWindow.videojs.getAllPlayers()[0];
+      // 监听
+      this.player?.on("ended", async () => {
+        // console.log("--------------ended-------------");
+        this.getCurrentVideoModel(); // 在下一集之前获取当前video状态
+        if (this.playerModel.isInPictureInPicture) {
+          //在画中画模式z则退出
+          (
+            this.player.controlBar.childNameIndex_.pictureInPictureToggle || {}
+          ).handleClick();
+        }
+        this.handleToNext();
+        await Common.sleep(200);
+        this.initPlayer();
+        this.handleToPlay();
+        await Common.sleep(1000);
+        this.restoreVideoModel();
+      });
+    },
+    bindEvent() {
+      // 主动点击下一集
+      $(unsafeWindow.document).on(
+        "click",
+        ".wp-playlist-tracks .wp-playlist-item, icon-angle-right",
+        async (e) => {
+          await Common.sleep(200);
+          this.initPlayer();
+        }
+      );
+    },
+    getCurrentVideoModel() {
+      // 保存当前video模式
+      this.playerModel = {
+        isFullscreen: this.player.isFullscreen_, // 全屏
+        isInPictureInPicture: this.player.isInPictureInPicture_, // 画中画
+        isFullWindow: !!$(".vjs-theater-mode-control-close").length, // 网页全屏:打开时会包含vjs-theater-mode-control-close
+      };
+    },
+    handleToNext() {
+      (this.player.controlBar.childNameIndex_.nextButton || {}).handleClick(); // 下一集按钮
+    },
+    handleToPlay() {
+      if (this.player.resumeModal?.opened_) {
+        // 已打开恢复弹框则选择 是
+        this.player.resumeModal.childNameIndex_.modalButtons.childNameIndex_.resumeButton.el_.click();
+      } else {
+        this.player.bigPlayButton?.el_.click(); //播放按钮
+        window.localStorage.setItem(
+          window.location.href.replace("https://ddrk.me", "videojs-resume:"),
+          0
+        );
+      }
+    },
+    restoreVideoModel() {
+      // 恢复上次video模式
+      if (this.playerModel.isFullscreen) {
+        (
+          this.player.controlBar.childNameIndex_.fullscreenToggle || {}
+        ).handleClick();
+      } else if (this.playerModel.isInPictureInPicture) {
+        // (
+        //   this.player.controlBar.childNameIndex_.pictureInPictureToggle || {}
+        // ).handleClick();
+        this.player.controlBar.childNameIndex_.pictureInPictureToggle.el_.click();
+      } else if (this.playerModel.isFullWindow) {
+        (
+          this.player.controlBar.childNameIndex_.theaterModeToggle || {}
+        ).handleClick();
+      }
+    },
+  };
+  autoPlayNext.init();
 })();
