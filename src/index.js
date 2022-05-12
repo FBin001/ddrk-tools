@@ -332,19 +332,6 @@
     },
   };
 
-  // 监听 页面显示隐藏
-  document.addEventListener("visibilitychange", async function () {
-    // console.log("-----------", document.visibilityState);
-    if (document.visibilityState == "hidden") {
-      //切离该页面时执行
-      // 标签隐藏时自动暂停播放（待开发）
-    } else if (document.visibilityState == "visible") {
-      //切换到该页面时执行
-      // 刷新历史记录-因为需要和localStorage对比
-      hisList.value = await LocalHistory.getLocalHistory();
-    }
-  });
-
   // 等待页面加载完成
   await Common.ready();
   await Common.getVue();
@@ -569,6 +556,18 @@
   const app = createApp(App);
   app.mount("#ddrk-tools");
 
+  // 监听 页面显示隐藏
+  document.addEventListener("visibilitychange", async function () {
+    // console.log("-----------", document.visibilityState);
+    if (document.visibilityState == "hidden") {
+      //切离该页面时执行
+      // 标签隐藏时自动暂停播放（待开发）
+    } else if (document.visibilityState == "visible") {
+      //切换到该页面时执行
+      // 刷新历史记录-因为需要和localStorage对比
+      hisList.value = await LocalHistory.getLocalHistory();
+    }
+  });
   /**
    * 蒙层及收藏
    */
