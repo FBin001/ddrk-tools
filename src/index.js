@@ -1,11 +1,12 @@
 // ==UserScript==
-// @name         ddrk助手
+// @name         ddrk低端影视助手
 // @namespace    king
-// @version      0.4
-// @description  1.去广告 2.收藏功能 3.历史观看记录 4.自动播放下一集
+// @version      0.4.1
+// @description  1.自动播放下一集 2.收藏功能 3.历史观看记录 4.去广告
 // @author       hero-king
 // @match        https://ddrk.me/*
 // @icon         https://ddrk.me/favicon-32x32.png
+// @run-at       document-start
 // @grant        unsafeWindow
 // @grant        GM_listValues
 // @grant        GM_setValue
@@ -15,49 +16,22 @@
 // @require      https://cdn.bootcdn.net/ajax/libs/jquery/3.6.0/jquery.js
 // ==/UserScript==
 
-(function () {
+(async function () {
   "use strict";
-  const Store = {
-    setValue: function (key, value) {
-      GM_setValue(key, value);
-    },
-    getValue: function (key) {
-      return GM_getValue(key) || localStorage.getItem(key);
-    },
-    listValues: function () {
-      return GM_listValues();
-    },
-    getLocalStorageData: function () {
-      var len = localStorage.length; // 获取长度
-      var arr = new Array(); // 定义数据集
-      for (var i = 0; i < len; i++) {
-        // 获取key 索引从0开始
-        var getKey = localStorage.key(i);
-        // 获取key对应的值
-        var getVal = localStorage.getItem(getKey);
-        // 放进数组
-        arr[i] = {
-          key: getKey,
-          val: getVal,
-        };
-      }
-      return arr;
-    },
-  };
-  const Common = {
-    //参数time为休眠时间，单位为毫秒:
-    sleep: function (time) {
-      return new Promise((resolve) => {
-        setTimeout(resolve, time);
-      });
-    },
-  };
-  /*去广告*/
-  $(".cfa_popup").css({ height: "0px" });
-  $("#iaujwnefhw").css({ height: "0", overflow: "hidden" });
-  $("#kasjbgih").css({ height: "0", overflow: "hidden" });
 
-  const styleStr = `<style>
+  /** 广告隐藏class */
+  const adClass = `<style>
+    .cfa_popup {
+      height: 0 !important;
+    }
+    #iaujwnefhw,#kasjbgih {
+      height: 0 !important;
+      overflow: hidden !important;
+    }
+  <style>`;
+  $("head").append(adClass);
+  /** 页面class */
+  const mainCss = `<style>
     .ddrk-tools__modal {
       position: absolute;
       left: 0;
@@ -153,8 +127,64 @@
       text-align: center;
       color: #fff;
     }
+    #ddrk-tools_pipbtn{
+      width: 0;
+      height: 0;
+      padding: 0;
+      border: 0;
+    }
     <style>`;
-  $("head").append(styleStr);
+  $("head").append(mainCss);
+
+  const Store = {
+    setValue: function (key, value) {
+      // 兼容移动端
+      GM_setValue ? GM_setValue(key, value) : localStorage.setItem(key, value);
+    },
+    getValue: function (key) {
+      return GM_getValue
+        ? GM_getValue(key) || localStorage.getItem(key)
+        : localStorage.getItem(key);
+    },
+    listValues: function () {
+      return GM_listValues();
+    },
+    getLocalStorageData: function () {
+      var len = localStorage.length; // 获取长度
+      var arr = new Array(); // 定义数据集
+      for (var i = 0; i < len; i++) {
+        // 获取key 索引从0开始
+        var getKey = localStorage.key(i);
+        // 获取key对应的值
+        var getVal = localStorage.getItem(getKey);
+        // 放进数组
+        arr[i] = {
+          key: getKey,
+          val: getVal,
+        };
+      }
+      return arr;
+    },
+  };
+
+  const Common = {
+    //参数time为休眠时间，单位为毫秒:
+    sleep: function (time) {
+      return new Promise((resolve) => {
+        setTimeout(resolve, time);
+      });
+    },
+    ready: function () {
+      return new Promise((resolve) => {
+        $(document).ready(function () {
+          resolve();
+        });
+      });
+    },
+  };
+
+  // 等待页面加载完成
+  await Common.ready();
 
   $(".post-box").on("click", ".btn_col-default", function (e) {
     e.stopPropagation();
@@ -198,6 +228,7 @@
     reloadCollectHtml();
     e.stopPropagation();
   });
+  // 监听收藏变化
   GM_addValueChangeListener(
     "ddrk-collection",
     function (name, oldValue, newValue, remote) {
@@ -513,28 +544,38 @@
   const autoPlayNext = {
     player: null,
     playerModel: {},
+    nextType: "hand", // 手动 | 自动
     init() {
       this.initPlayer();
       this.bindEvent();
+      // Videojs requestPictureInPicture()在滚动到顶部和底部时仅工作一次
+      // 解决方案：通过添加按钮模拟点击解决
+      $("body").append(
+        $(`<button id="ddrk-tools_pipbtn" title="切换画中画"></button>`)
+      );
     },
     initPlayer() {
       this.player = unsafeWindow.videojs.getAllPlayers()[0];
+      console.time("视频源数据加载完成");
       // 监听
+      this.player?.one("canplaythrough", async (e) => {
+        console.timeEnd("视频源数据加载完成");
+        await Common.sleep(200);
+        this.nextType === "auto" && this.restoreVideoModel();
+      });
       this.player?.on("ended", async () => {
         // console.log("--------------ended-------------");
         this.getCurrentVideoModel(); // 在下一集之前获取当前video状态
         if (this.playerModel.isInPictureInPicture) {
           //在画中画模式z则退出
-          (
-            this.player.controlBar.childNameIndex_.pictureInPictureToggle || {}
-          ).handleClick();
+          // document.exitPictureInPicture();
+          $("#ddrk-tools_pipbtn")[0].click();
         }
         this.handleToNext();
+        this.nextType = "auto";
         await Common.sleep(200);
         this.initPlayer();
         this.handleToPlay();
-        await Common.sleep(1000);
-        this.restoreVideoModel();
       });
     },
     bindEvent() {
@@ -545,14 +586,23 @@
         async (e) => {
           await Common.sleep(200);
           this.initPlayer();
+          this.nextType = "hand";
         }
       );
+      // 切换画中画
+      $("body").on("click", "#ddrk-tools_pipbtn", function (e) {
+        if (!document.pictureInPictureElement) {
+          $("#vjsp_html5_api")[0].requestPictureInPicture();
+        } else {
+          document.exitPictureInPicture();
+        }
+      });
     },
     getCurrentVideoModel() {
       // 保存当前video模式
       this.playerModel = {
         isFullscreen: this.player.isFullscreen_, // 全屏
-        isInPictureInPicture: this.player.isInPictureInPicture_, // 画中画
+        isInPictureInPicture: !!document.pictureInPictureElement, // 画中画
         isFullWindow: !!$(".vjs-theater-mode-control-close").length, // 网页全屏:打开时会包含vjs-theater-mode-control-close
       };
     },
@@ -565,27 +615,32 @@
         this.player.resumeModal.childNameIndex_.modalButtons.childNameIndex_.resumeButton.el_.click();
       } else {
         this.player.bigPlayButton?.el_.click(); //播放按钮
-        window.localStorage.setItem(
+        localStorage.setItem(
           window.location.href.replace("https://ddrk.me", "videojs-resume:"),
           0
         );
       }
     },
-    restoreVideoModel() {
+    async restoreVideoModel() {
       // 恢复上次video模式
       if (this.playerModel.isFullscreen) {
         (
           this.player.controlBar.childNameIndex_.fullscreenToggle || {}
         ).handleClick();
+        // this.player.controlBar.childNameIndex_.fullscreenToggle.el_.click();
       } else if (this.playerModel.isInPictureInPicture) {
+        // await Common.sleep(2000);
         // (
         //   this.player.controlBar.childNameIndex_.pictureInPictureToggle || {}
         // ).handleClick();
-        this.player.controlBar.childNameIndex_.pictureInPictureToggle.el_.click();
+        // this.player.controlBar.childNameIndex_.pictureInPictureToggle.el_.click();
+        // $("#vjsp_html5_api")[0].requestPictureInPicture();
+        $("#ddrk-tools_pipbtn")[0].click();
       } else if (this.playerModel.isFullWindow) {
         (
           this.player.controlBar.childNameIndex_.theaterModeToggle || {}
         ).handleClick();
+        // this.player.controlBar.childNameIndex_.theaterModeToggle.el_.click();
       }
     },
   };
