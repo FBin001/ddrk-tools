@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ddrk低端影视助手
 // @namespace    king
-// @version      0.4.1
+// @version      0.5
 // @description  1.自动播放下一集 2.收藏功能 3.历史观看记录 4.去广告
 // @author       hero-king
 // @match        https://ddrk.me/*
@@ -18,6 +18,11 @@
 
 (async function () {
   "use strict";
+  // @require      https://unpkg.com/eruda@2.3.3/eruda.js
+  // eruda.init();
+
+  const STORE_COLLECTION_KEY = "ddrk-tools-collection";
+  const STORE_HITORY_KEY = "ddrk-tools-history";
 
   /** 广告隐藏class */
   const adClass = `<style>
@@ -155,21 +160,6 @@
     <style>`;
   $("head").append(mainCss);
 
-  const Store = {
-    setValue: function (key, value) {
-      // 兼容移动端
-      GM_setValue ? GM_setValue(key, value) : localStorage.setItem(key, value);
-    },
-    getValue: function (key) {
-      return GM_getValue
-        ? GM_getValue(key) || localStorage.getItem(key)
-        : localStorage.getItem(key);
-    },
-    listValues: function () {
-      return GM_listValues();
-    },
-  };
-
   const Common = {
     //参数time为休眠时间，单位为毫秒:
     sleep(time) {
@@ -189,6 +179,26 @@
       return new Promise((resolve) => {
         $.getScript("https://unpkg.com/vue@3.2.33/dist/vue.global.js", resolve);
       });
+    },
+    isMobile() {
+      return /Mobi|Android|iPhone/i.test(navigator.userAgent);
+    },
+  };
+
+  const Store = {
+    setValue: function (key, value) {
+      // 兼容移动端
+      Common.isMobile()
+        ? localStorage.setItem(key, value)
+        : GM_setValue(key, value);
+    },
+    getValue: function (key) {
+      return Common.isMobile()
+        ? localStorage.getItem(key)
+        : GM_getValue(key) || localStorage.getItem(key);
+    },
+    listValues: function () {
+      return GM_listValues();
     },
   };
 
@@ -217,6 +227,7 @@
       // 过滤name不存在的
       res = res.filter((item) => item.name);
       Store.setValue("ddrk-history", JSON.stringify(res));
+      Store.setValue(STORE_HITORY_KEY, JSON.stringify(res));
       return res;
     },
     getLocalStorageData: function () {
@@ -328,6 +339,7 @@
       if (index !== -1) {
         colList.value.splice(index, 1);
         Store.setValue("ddrk-collection", JSON.stringify(colList.value));
+        Store.setValue(STORE_COLLECTION_KEY, JSON.stringify(colList.value));
       }
     },
   };
@@ -509,8 +521,9 @@
           ? parseInt((item.val - hour * 3600) / 60)
           : 0;
       const sec = parseInt(item.val - hour * 3600 - min * 60);
-      const timeStr = `${hour > 9 ? hour : "0" + hour}:${min > 9 ? min : "0" + min
-        }:${sec > 9 ? sec : "0" + sec}`;
+      const timeStr = `${hour > 9 ? hour : "0" + hour}:${
+        min > 9 ? min : "0" + min
+      }:${sec > 9 ? sec : "0" + sec}`;
       return () =>
         h(
           "li",
@@ -607,7 +620,9 @@
             name: name.indexOf("(") > -1 ? name.split("(")[0] : name,
             href,
           });
+          /** 一个月后常量替换该字段， 当前版本0.5 */
           Store.setValue("ddrk-collection", JSON.stringify(colList.value));
+          Store.setValue(STORE_COLLECTION_KEY, JSON.stringify(colList.value));
         }
         self.reloadCollectHtml(1, $(this));
       });
@@ -617,6 +632,7 @@
         if (index !== -1) {
           colList.value.splice(index, 1);
           Store.setValue("ddrk-collection", JSON.stringify(colList.value));
+          Store.setValue(STORE_COLLECTION_KEY, JSON.stringify(colList.value));
         }
         self.reloadCollectHtml(0, $(this));
       });
