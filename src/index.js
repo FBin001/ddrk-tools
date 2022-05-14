@@ -5,7 +5,6 @@
 // @description  1.自动播放下一集 2.收藏功能 3.历史观看记录 4.去广告
 // @author       hero-king
 // @match        https://ddrk.me/*
-// @match        http://d-us.icloudcity.com/*
 // @icon         https://ddrk.me/favicon-32x32.png
 // @run-at       document-start
 // @grant        unsafeWindow
