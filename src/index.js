@@ -5,14 +5,13 @@
 // @description  1.自动播放下一集 2.收藏功能 3.历史观看记录 4.去广告
 // @author       hero-king
 // @match        https://ddrk.me/*
+// @match        http://d-us.icloudcity.com/*
 // @icon         https://ddrk.me/favicon-32x32.png
 // @run-at       document-start
 // @grant        unsafeWindow
 // @grant        GM_listValues
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_addValueChangeListener
-// @grant        GM_registerMenuCommand
 // @require      http://code.jquery.com/jquery-2.1.1.min.js
 // ==/UserScript==
 
@@ -23,6 +22,7 @@
 
   const STORE_COLLECTION_KEY = "ddrk-tools-collection";
   const STORE_HITORY_KEY = "ddrk-tools-history";
+  const STORE_SETTINGS_KEY = "ddrk-tools-settings";
 
   /** 广告隐藏class */
   const adClass = `<style>
@@ -48,12 +48,12 @@
     .btn_col-default {
       position: absolute;
       top:0;
-      font-size:22px;
-      color: #2EBF8B;
-      padding:6px;
-      background-color: rgba(0,0,0,0.4);
-      box-shadow: 0px 0px 5px rgba(0,0,0,0.4);
-      line-height: 1.2;
+      right: -32px;
+      width: 32px;
+      padding: 5px;
+      background-color: rgba(0,0,0,0.6);
+      box-shadow: 4px 0px 8px rgba(0,0,0,0.4);
+      line-height: 1;
       user-select:none;
     }
     .col_list {
@@ -64,8 +64,8 @@
       height: auto;
       min-height: 54px;
       box-sizing: border-box;
-      background: #000;
-      box-shadow: -1px 1px 5px rgba(0, 0, 0, 0.2);
+      background: #2c2c2c;
+      box-shadow: -20px 10px 60px rgba(0, 0, 0, 0.6);
       z-index: 999;
       transition: width .6s;
     }
@@ -121,13 +121,15 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      cursor: pointer;
       margin: 5px 0;
       padding: 0 5px;
       line-height: 25px;
       border: 1px solid transparent;
       border-left: none;
       border-right: none;
+    }
+    .col_list-ul .col_item a {
+      color: #20B2AA;
     }
     .col_list-ul .col_item .his_time{
       font-size: 12px;
@@ -143,10 +145,11 @@
       display: none;
       text-align: center;
       color: #fff;
+      cursor: pointer;
     }
     .col_list-ul .col_item:hover {
-      box-shadow: 0 0 5px rgba(32,178,170,0.2);
-      border-color: rgba(225,255,255,0.4);
+      // box-shadow: 0 0 5px rgba(32,178,170,0.2);
+      // border-color: rgba(225,255,255,0.4);
     }
     .col_list-ul .col_item:hover .icon_del{
       display: inline-block;
@@ -159,6 +162,11 @@
     }
     <style>`;
   $("head").append(mainCss);
+
+  /** pretty-checkbox css */
+  $("head").append(
+    '<link href="https://cdn.jsdelivr.net/npm/pretty-checkbox@3.0/dist/pretty-checkbox.min.css" rel="stylesheet">'
+  );
 
   const Common = {
     //参数time为休眠时间，单位为毫秒:
@@ -219,9 +227,13 @@
       let res = this.compareLocalData(jsonList, filterList);
       // console.log("history-----------------", his);
       for (const item of res) {
-        if (!item.name) {
+        if (!item.name && (item.errorTimes || 0) < 50) {
           const name = await this.getDramaName(item.url);
           item.name = name.indexOf("(") > -1 ? name.split("(")[0] : name;
+          if (!name) {
+            // 记录该记录请求失败次数
+            item.errorTimes = item.errorTimes ? item.errorTimes++ : 1;
+          }
         }
       }
       // 过滤name不存在的
@@ -335,12 +347,32 @@
         });
       });
     },
-    handleColDel(index) {
-      if (index !== -1) {
-        colList.value.splice(index, 1);
-        Store.setValue("ddrk-collection", JSON.stringify(colList.value));
-        Store.setValue(STORE_COLLECTION_KEY, JSON.stringify(colList.value));
+  };
+
+  /** 设置 */
+  const Settings = {
+    defaultData: [
+      { id: 1, name: "自动播放下一集", val: true },
+      { id: 2, name: "点击海报打开新标签", val: true },
+    ],
+    getData() {
+      const localDataStr = Store.getValue(STORE_SETTINGS_KEY);
+      if (localDataStr) {
+        const localData = JSON.parse(localDataStr);
+        return this.defaultData.map((item) => {
+          const localItem = localData.find((ele) => ele.id === item.id) || {};
+          return {
+            ...item,
+            ...localItem,
+          };
+        });
       }
+      return this.defaultData;
+    },
+    getValueById(id) {
+      return (
+        settingsList.value.find((item) => item.id === id) || { val: true }
+      ).val;
     },
   };
 
@@ -350,69 +382,152 @@
 
   // vue容器
   $("body").append($(`<div id="ddrk-tools" ></div>`));
-  const { createApp, toRefs, ref, h } = Vue;
+  const { createApp, toRefs, ref, h, defineComponent } = Vue;
 
-  const svg1 = {
-    setup(props) {
-      return () => [
+  const IconCollection = defineComponent({
+    template: `<svg class="col_list_arrow" t="1652086592663" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2982" width="32" height="32"><path d="M856.8 82.8H386.1c-40.4-43.2-135.5-67-188.9-67-94.9 0-175.8 70.5-188.9 164.4-5.6 16-8.3 31.3-8.3 46.7v603.7c0 98.7 80.3 179.2 179.2 179.2h695.7c82 0 148.8-66.7 148.8-148.8V249.8c0-92.2-74.8-167-166.9-167z m0 30.4c60 0 110.5 39.2 128.7 93.2H627.2l-183.5-93.2h413.1z m136.6 747.7c0 65.3-53.1 118.4-118.4 118.4H179.3c-82 0.1-148.9-66.7-148.9-148.8V226.8c0-12.3 2.3-24.7 7-38l0.8-3.2c10.5-79.4 78.7-139.5 159.1-139.5 56.2 0 142.9 26.7 170.1 61.2l4.6 5.8h2.6l242.3 120.3h374.9c0.6 5.3 1.6 10.6 1.6 16.1v611.4z m0 0" fill="#000000" p-id="2983"></path><path d="M201.3 842.6h791v27.8h-791v-27.8z m-92.9 0h30.3v30.3h-30.3v-30.3z m258-260L346.1 693.8c-1.9 10.7 2.3 21.3 11 27.8 8.8 6.5 20.1 7.4 29.8 2.5l98.7-51.6 99.5 53.6c4.3 2.3 8.9 3.4 13.5 3.4 5.7 0 11.5-1.8 16.4-5.3 8.8-6.3 13.3-16.8 11.6-27.6L608.1 586.8l81.8-78c7.8-7.5 10.7-18.6 7.5-29-3.3-10.4-12-17.8-22.7-19.5L564.5 444l-49-101.9c-4.7-9.8-14.4-15.9-25.2-16.1-9.7-0.5-20.7 5.8-25.6 15.5L415.1 441.1l-112 15.1c-10.7 1.5-19.6 8.8-23.1 19.1s-0.8 21.4 6.9 29.1l79.5 78.2z m52.8-111.3c9.2-1.2 17.2-6.9 21.5-15.3l49.2-97.2 47.2 98.3c4.1 8.4 12 14.3 21.2 15.7L666.1 489.6l-78.8 75.2c-6.7 6.4-9.9 15.7-8.4 25l18.5 108.3-97.3-52.3c-4.2-2.3-8.8-3.4-13.4-3.4-4.4 0-8.9 1-13 3.1l-97 49.7 19.6-107.3c1.7-9.2-1.3-18.6-7.9-25.1l-77.3-77 108.1-14.5z m0 0" fill="#000000" p-id="2984"></path></svg>`,
+  });
+  const IconHistory = defineComponent({
+    template: `<svg class="col_list_arrow" t="1652086837248" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="4653" width="32" height="32"><path d="M204.8 552.96h204.8a20.48 20.48 0 0 1 0 40.96H204.8a20.48 20.48 0 0 1 0-40.96z" p-id="4654" fill="#000000"></path><path d="M143.36 921.6a40.96 40.96 0 0 1-40.96-40.96V143.36a40.96 40.96 0 0 1 40.96-40.96h614.4a40.96 40.96 0 0 1 40.96 40.96v327.68h40.96V143.36a81.92 81.92 0 0 0-81.92-81.92H143.36a81.92 81.92 0 0 0-81.92 81.92v737.28a81.92 81.92 0 0 0 81.92 81.92h327.68v-40.96z" p-id="4655" fill="#000000"></path><path d="M737.28 512a225.28 225.28 0 1 0 225.28 225.28 225.28 225.28 0 0 0-225.28-225.28z m0 409.6a184.32 184.32 0 1 1 184.32-184.32 184.32 184.32 0 0 1-184.32 184.32z" p-id="4656" fill="#000000"></path><path d="M771.2768 660.6848Q634.88 584.0896 634.88 737.28t136.6016 76.5952q136.192-76.5952-0.2048-153.1904z m-13.5168 122.88Q675.84 829.44 675.84 737.28t81.92-46.08q81.92 46.08 0 92.16zM225.28 307.2h-20.48a20.48 20.48 0 0 0 0 40.96h20.48zM696.32 307.2H266.24v40.96h430.08a20.48 20.48 0 0 0 0-40.96z" p-id="4657" fill="#000000"></path></svg>`,
+  });
+  const IconSettings = defineComponent({
+    template: `<svg class="col_list_arrow" t="1652512893916" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="12985" width="32" height="32"><path d="M746.666667 469.333333H277.333333C159.509333 469.333333 64 373.824 64 256S159.509333 42.666667 277.333333 42.666667h469.333334c117.802667 0 213.333333 95.509333 213.333333 213.333333s-95.530667 213.333333-213.333333 213.333333z m0-384H277.333333a170.666667 170.666667 0 0 0 0 341.333334h469.333334a170.666667 170.666667 0 0 0 0-341.333334zM277.333333 384a128 128 0 1 1 0-256 128 128 0 0 1 0 256z m0-213.333333a85.333333 85.333333 0 1 0 0 170.666666 85.333333 85.333333 0 0 0 0-170.666666z m0 384h469.333334c117.802667 0 213.333333 95.530667 213.333333 213.333333s-95.530667 213.333333-213.333333 213.333333H277.333333C159.509333 981.333333 64 885.802667 64 768s95.509333-213.333333 213.333333-213.333333z m0 384h469.333334a170.666667 170.666667 0 0 0 0-341.333334H277.333333a170.666667 170.666667 0 0 0 0 341.333334z m469.333334-298.666667a128 128 0 0 1 0 256 128 128 0 0 1 0-256z m0 213.333333a85.333333 85.333333 0 1 0 0-170.666666 85.333333 85.333333 0 0 0 0 170.666666z" fill="#2c2c2c" p-id="12986"></path></svg>`,
+  });
+
+  // 收藏组件
+  const ComponentCollection = {
+    setup(props, { slots }) {
+      return () =>
         h(
-          "svg",
+          "ul",
           {
-            class: "col_list_arrow",
-            width: "32",
-            height: "32",
-            viewBox: "0 0 1024 1024",
+            class: "col_list-ul",
           },
-          [
-            h("path", {
-              fill: "#000",
-              d: "M856.8 82.8H386.1c-40.4-43.2-135.5-67-188.9-67-94.9 0-175.8 70.5-188.9 164.4-5.6 16-8.3 31.3-8.3 46.7v603.7c0 98.7 80.3 179.2 179.2 179.2h695.7c82 0 148.8-66.7 148.8-148.8V249.8c0-92.2-74.8-167-166.9-167z m0 30.4c60 0 110.5 39.2 128.7 93.2H627.2l-183.5-93.2h413.1z m136.6 747.7c0 65.3-53.1 118.4-118.4 118.4H179.3c-82 0.1-148.9-66.7-148.9-148.8V226.8c0-12.3 2.3-24.7 7-38l0.8-3.2c10.5-79.4 78.7-139.5 159.1-139.5 56.2 0 142.9 26.7 170.1 61.2l4.6 5.8h2.6l242.3 120.3h374.9c0.6 5.3 1.6 10.6 1.6 16.1v611.4z m0 0",
-            }),
-            h("path", {
-              fill: "#000",
-              d: "M201.3 842.6h791v27.8h-791v-27.8z m-92.9 0h30.3v30.3h-30.3v-30.3z m258-260L346.1 693.8c-1.9 10.7 2.3 21.3 11 27.8 8.8 6.5 20.1 7.4 29.8 2.5l98.7-51.6 99.5 53.6c4.3 2.3 8.9 3.4 13.5 3.4 5.7 0 11.5-1.8 16.4-5.3 8.8-6.3 13.3-16.8 11.6-27.6L608.1 586.8l81.8-78c7.8-7.5 10.7-18.6 7.5-29-3.3-10.4-12-17.8-22.7-19.5L564.5 444l-49-101.9c-4.7-9.8-14.4-15.9-25.2-16.1-9.7-0.5-20.7 5.8-25.6 15.5L415.1 441.1l-112 15.1c-10.7 1.5-19.6 8.8-23.1 19.1s-0.8 21.4 6.9 29.1l79.5 78.2z m52.8-111.3c9.2-1.2 17.2-6.9 21.5-15.3l49.2-97.2 47.2 98.3c4.1 8.4 12 14.3 21.2 15.7L666.1 489.6l-78.8 75.2c-6.7 6.4-9.9 15.7-8.4 25l18.5 108.3-97.3-52.3c-4.2-2.3-8.8-3.4-13.4-3.4-4.4 0-8.9 1-13 3.1l-97 49.7 19.6-107.3c1.7-9.2-1.3-18.6-7.9-25.1l-77.3-77 108.1-14.5z m0 0",
-            }),
-          ]
-        ),
-      ];
+          colList.value.map((item, index) => {
+            return h(
+              "li",
+              {
+                class: "col_item",
+                onClick: () => {
+                  // window.location.href = item.href;
+                },
+              },
+              [
+                h("span", [
+                  `${index + 1}. `,
+                  h("a", { href: item.href }, `${item.name}`),
+                ]),
+                h(
+                  "span",
+                  {
+                    class: "icon_del",
+                    onClick: (event) => {
+                      event.stopPropagation();
+                      LocalCollection.handleColDel(index);
+                      LocalCollection.reloadCollectButton();
+                    },
+                  },
+                  "x"
+                ),
+              ]
+            );
+          })
+        );
     },
   };
-  const svg2 = {
-    setup(props) {
-      return () => [
+  // 历史组件
+  const ComponentHistory = {
+    setup(props, { slots }) {
+      return () =>
         h(
-          "svg",
+          "ul",
           {
-            class: "col_list_arrow",
-            width: "32",
-            height: "32",
-            viewBox: "0 0 1024 1024",
+            class: "col_list-ul",
           },
-          [
-            h("path", {
-              fill: "#000",
-              d: "M204.8 552.96h204.8a20.48 20.48 0 0 1 0 40.96H204.8a20.48 20.48 0 0 1 0-40.96z",
-            }),
-            h("path", {
-              fill: "#000",
-              d: "M143.36 921.6a40.96 40.96 0 0 1-40.96-40.96V143.36a40.96 40.96 0 0 1 40.96-40.96h614.4a40.96 40.96 0 0 1 40.96 40.96v327.68h40.96V143.36a81.92 81.92 0 0 0-81.92-81.92H143.36a81.92 81.92 0 0 0-81.92 81.92v737.28a81.92 81.92 0 0 0 81.92 81.92h327.68v-40.96z",
-            }),
-            h("path", {
-              fill: "#000",
-              d: "M737.28 512a225.28 225.28 0 1 0 225.28 225.28 225.28 225.28 0 0 0-225.28-225.28z m0 409.6a184.32 184.32 0 1 1 184.32-184.32 184.32 184.32 0 0 1-184.32 184.32z",
-            }),
-            h("path", {
-              fill: "#000",
-              d: "M771.2768 660.6848Q634.88 584.0896 634.88 737.28t136.6016 76.5952q136.192-76.5952-0.2048-153.1904z m-13.5168 122.88Q675.84 829.44 675.84 737.28t81.92-46.08q81.92 46.08 0 92.16zM225.28 307.2h-20.48a20.48 20.48 0 0 0 0 40.96h20.48zM696.32 307.2H266.24v40.96h430.08a20.48 20.48 0 0 0 0-40.96z",
-            }),
-          ]
-        ),
-      ];
+          hisList.value.map((item, index) => {
+            const season = item.season ? `S${item.season}` : "";
+            const ep = item.ep ? `E${item.ep}` : "";
+            const hour =
+              parseInt(item.val / 3600) > 0 ? parseInt(item.val / 3600) : 0;
+            const min =
+              parseInt((item.val - hour * 3600) / 60) > 0
+                ? parseInt((item.val - hour * 3600) / 60)
+                : 0;
+            const sec = parseInt(item.val - hour * 3600 - min * 60);
+            const timeStr = `${hour > 9 ? hour : "0" + hour}:${
+              min > 9 ? min : "0" + min
+            }:${sec > 9 ? sec : "0" + sec}`;
+            return h(
+              "li",
+              {
+                class: "col_item",
+                onClick: () => {
+                  // window.location.href = item.url;
+                },
+              },
+              [
+                h("span", [
+                  `${index + 1}. `,
+                  h("a", { href: item.url }, `${item.name} ${season}${ep}`),
+                ]),
+                h(
+                  "span",
+                  {
+                    class: "his_time",
+                  },
+                  timeStr
+                ),
+              ]
+            );
+          })
+        );
     },
   };
-
+  // 设置组件
+  const ComponentSettings = {
+    setup(props, { slots }) {
+      return () =>
+        h(
+          "ul",
+          {
+            class: "col_list-ul",
+          },
+          settingsList.value.map((item, index) => {
+            return h(
+              "li",
+              {
+                class: "col_item",
+              },
+              [
+                h("span", item.name),
+                h(
+                  "div",
+                  {
+                    class: "pretty p-switch p-fill",
+                  },
+                  [
+                    h("input", {
+                      type: "checkbox",
+                      checked: !!item.val,
+                      onChange: (e) => {
+                        item.val = e.target.checked;
+                        Store.setValue(
+                          STORE_SETTINGS_KEY,
+                          JSON.stringify(settingsList.value)
+                        );
+                      },
+                    }),
+                    h("div", { class: "state p-primary" }, h("label")),
+                  ]
+                ),
+              ]
+            );
+          })
+        );
+    },
+  };
   // 外壳组件
-  const MainBody = {
+  const ListBody = {
     props: {
       title: {
         type: String,
@@ -422,151 +537,45 @@
         type: Object,
         required: true,
       },
-      list: {
-        type: Array,
-        required: true,
-        default: () => [],
-      },
     },
     setup(props, { slots }) {
-      const { title, style, list } = toRefs(props);
+      const { title, style } = toRefs(props);
+      const iconArr = {
+        收藏夹: [IconCollection, ComponentCollection],
+        观看记录: [IconHistory, ComponentHistory],
+        设置: [IconSettings, ComponentSettings],
+      };
       return () =>
         h("div", { class: "col_list", style: style?.value }, [
           h("h6", title.value),
-          title.value === "收藏夹" ? h(svg1) : h(svg2),
-          h(
-            "ul",
-            {
-              class: "col_list-ul",
-            },
-            list.value.map((item, index) => {
-              if (title.value === "收藏夹") {
-                return h(ColItem, {
-                  item,
-                  index,
-                  key: item.href,
-                });
-              } else {
-                return h(HistoryItem, {
-                  item,
-                  index,
-                  key: item.url + item.val,
-                });
-              }
-            })
-          ),
+          h(iconArr[title.value][0]),
+          h(iconArr[title.value][1]),
         ]);
     },
   };
-  // 收藏item组件
-  const ColItem = {
-    props: {
-      item: {
-        type: Object,
-        required: true,
-      },
-      index: {
-        type: Number,
-        required: true,
-      },
-    },
-    setup(props, { slots }) {
-      const { item, index } = props;
-      return () =>
-        h(
-          "li",
-          {
-            class: "col_item",
-            onClick: () => {
-              window.location.href = item.href;
-            },
-          },
-          [
-            h("span", `${index + 1}. ${item.name}`),
-            h(
-              "span",
-              {
-                class: "icon_del",
-                onClick: (event) => {
-                  event.stopPropagation();
-                  LocalHistory.handleColDel(index);
-                },
-              },
-              "x"
-            ),
-          ]
-        );
-    },
-  };
-  // 历史item组件
-  const HistoryItem = {
-    props: {
-      item: {
-        type: Object,
-        required: true,
-      },
-      index: {
-        type: Number,
-        required: true,
-      },
-    },
-    setup(props, { slots }) {
-      const { item, index } = props;
-      const season = item.season ? `S${item.season}` : "";
-      const ep = item.ep ? `E${item.ep}` : "";
-      const hour =
-        parseInt(item.val / 3600) > 0 ? parseInt(item.val / 3600) : 0;
-      const min =
-        parseInt((item.val - hour * 3600) / 60) > 0
-          ? parseInt((item.val - hour * 3600) / 60)
-          : 0;
-      const sec = parseInt(item.val - hour * 3600 - min * 60);
-      const timeStr = `${hour > 9 ? hour : "0" + hour}:${
-        min > 9 ? min : "0" + min
-      }:${sec > 9 ? sec : "0" + sec}`;
-      return () =>
-        h(
-          "li",
-          {
-            class: "col_item",
-            onClick: () => {
-              window.location.href = item.url;
-            },
-          },
-          [
-            h("span", `${index + 1}. ${item.name} ${season}${ep}`),
-            h(
-              "span",
-              {
-                class: "his_time",
-              },
-              timeStr
-            ),
-          ]
-        );
-    },
-  };
-
   let colList = ref(JSON.parse(Store.getValue("ddrk-collection") || "[]"));
   let hisList = ref(await LocalHistory.getLocalHistory());
+  let settingsList = ref(Settings.getData());
   // 根组件
-  const App = {
+  const ComponentApp = {
     render() {
-      return h("div", { class: "container" }, [
-        h(MainBody, {
+      return h("div", { class: "ddrk-tools-container" }, [
+        h(ListBody, {
           title: "收藏夹",
           style: { top: "35px", "z-index": 100 },
-          list: colList.value,
         }),
-        h(MainBody, {
-          title: "历史记录",
+        h(ListBody, {
+          title: "观看记录",
           style: { top: "85px", "z-index": 99 },
-          list: hisList.value,
+        }),
+        h(ListBody, {
+          title: "设置",
+          style: { top: "135px", "z-index": 98 },
         }),
       ]);
     },
   };
-  const app = createApp(App);
+  const app = createApp(ComponentApp);
   app.mount("#ddrk-tools");
 
   // 监听 页面显示隐藏
@@ -579,26 +588,32 @@
       //切换到该页面时执行
       // 刷新历史记录-因为需要和localStorage对比
       hisList.value = await LocalHistory.getLocalHistory();
+      settingsList.value = Settings.getData();
     }
   });
   /**
    * 蒙层及收藏
    */
-  const Collection = {
+  const IconCollSlim =
+    '<svg t="1652519299883" class="icon" viewBox="0 0 1026 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="6345" width="23" height="23"><path d="M1019.109859 384c-11.286261-32.01113-39.713391-55.05113-74.195478-60.126609L701.69212 288.233739l-105.627826-216.019478c-15.270957-31.276522-48.261565-51.489391-84.057043-51.489391-35.706435 0-68.652522 20.21287-83.968 51.489391l-105.672348 216.041739L79.166902 323.940174c-34.504348 4.964174-62.953739 27.981913-74.24 60.17113-11.264 32.50087-2.871652 67.806609 21.882435 92.137739l178.509913 175.638261-41.405217 243.378087c-5.810087 33.925565 9.282783 68.719304 38.555826 88.687304 28.627478 19.255652 67.005217 21.370435 97.836522 5.164522l211.745391-112.39513 211.878957 112.417391c13.712696 7.234783 29.094957 11.063652 44.521739 11.063652 19.010783 0 37.420522-5.609739 53.337043-16.317217 29.139478-19.878957 44.210087-54.650435 38.4-88.576l-41.382957-243.400348 178.532174-175.638261C1022.048294 451.917913 1030.440641 416.589913 1019.109859 384zM966.062207 444.527304l-195.094261 191.955478 45.278609 266.329043c2.938435 17.096348-4.585739 34.05913-19.478261 44.232348-15.248696 10.24-35.817739 11.330783-52.045913 2.782609L512.00725 826.323478l-232.537043 123.436522c-16.406261 8.637217-36.997565 7.479652-52.045913-2.671304-15.048348-10.262261-22.572522-27.247304-19.634087-44.343652l45.30087-266.284522-195.072-191.955478c-12.377043-12.154435-16.606609-29.718261-11.063652-45.723826 5.765565-16.384 20.524522-28.182261 38.622609-30.786783l266.48487-39.112348 115.97913-237.122783c7.880348-16.11687 25.154783-26.534957 43.987478-26.534957 18.899478 0 36.173913 10.395826 44.054261 26.512696l115.95687 237.122783 266.418087 39.023304c18.075826 2.671304 32.901565 14.514087 38.64487 30.809043C982.668815 414.786783 978.43925 432.328348 966.062207 444.527304zM509.046555 376.898783c-45.590261 0-82.320696 13.913043-109.122783 41.316174-44.744348 45.746087-43.78713 112.194783-43.720348 115.021913 0.26713 12.109913 10.173217 21.726609 22.238609 21.726609 0.133565 0 0.289391 0 0.422957 0 12.265739-0.222609 22.016-10.373565 21.837913-22.639304 0-0.512-0.400696-51.066435 31.254261-83.18887 18.098087-18.387478 44.054261-27.692522 77.06713-27.692522 12.288 0 22.26087-9.97287 22.26087-22.26087S521.334555 376.898783 509.046555 376.898783z" p-id="6346" fill="#008080"></path></svg>';
+  const IconCollFill =
+    '<svg t="1652518631199" class="icon" viewBox="0 0 1071 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2829" width="23" height="23"><path d="M595.741436 18.32575a97.371215 97.371215 0 0 1 23.150006 23.563834l135.589417 195.61877a48.685607 48.685607 0 0 0 27.823824 19.401215l214.411416 55.47725a97.371215 97.371215 0 0 1 54.138395 151.850409l-143.69557 195.910885a48.685607 48.685607 0 0 0-9.420665 29.381764l2.677708 216.504896a97.371215 97.371215 0 0 1-126.533894 94.109279l-219.133919-68.817106a48.685607 48.685607 0 0 0-28.821879-0.121714l-231.402693 70.740188a97.371215 97.371215 0 0 1-125.852295-93.111224v-220.78923a48.685607 48.685607 0 0 0-8.203525-27.069198L26.801427 461.194378a97.371215 97.371215 0 0 1 55.574621-148.150304l208.301371-56.158848a48.685607 48.685607 0 0 0 26.82577-18.573559l142.332373-197.809623a97.371215 97.371215 0 0 1 135.905874-22.176294z m104.1872 535.298254c-37.926088 42.940706-89.16769 64.265002-157.49794 64.265001-68.963163 0-123.564072-21.859838-166.821234-66.090712a48.685607 48.685607 0 0 0-69.620419 68.062479c62.025464 63.437347 141.845517 95.423791 236.465995 95.423791 95.277734 0 173.320763-32.521986 230.453323-97.249501a48.685607 48.685607 0 0 0-73.004068-64.411058z" p-id="2830" fill="#008080"></path></svg>';
+  const LocalCollection = {
     init() {
-      const modal = $("<div  class='ddrk-tools__modal'></div>");
+      const modal = $("<a class='ddrk-tools__modal'></a>");
       const colButton = $(
-        '<span class="btn_col-default btn_col-remove">★</span>'
+        `<span class="btn_col-default btn_col-remove">${IconCollFill}</span>`
       );
       $(".post-box").each(function () {
         const tempBtn = colButton.clone(true);
         if (!colList.value.find((item) => item.href === $(this).data("href"))) {
           tempBtn.addClass("btn_col-add");
           tempBtn.removeClass("btn_col-remove");
-          tempBtn.text("☆");
+          tempBtn.html(IconCollSlim);
         }
-        modal.html(tempBtn);
+        modal.attr("href", $(this).data("href"));
         $(this).append(modal.clone(true));
+        $(this).append(tempBtn);
       });
       this.bindEvent();
     },
@@ -606,15 +621,21 @@
       const self = this;
       // 点击打开新页签--后续添加到设置
       $(".post-box").on("click", ".ddrk-tools__modal", function (e) {
-        window.open($(this).parent().data("href"));
+        console.log("opentab: ", Settings.getValueById(2));
+        if (Settings.getValueById(2)) {
+          window.open($(this).parent().data("href"));
+        } else {
+          window.location.href = $(this).parent().data("href");
+        }
         e.stopPropagation();
+        return false; // 阻止a标签默认行为
       });
       $(".post-box").on("click", ".btn_col-default", function (e) {
         e.stopPropagation();
       });
       $(".post-box").on("click", ".btn_col-add", function (e) {
-        const href = $(this).parent().parent().data("href");
-        const name = $(this).parent().parent().find(".post-box-title a").text();
+        const href = $(this).parent().data("href");
+        const name = $(this).parent().find(".post-box-title a").text();
         if (!colList.value.find((item) => item.href === href)) {
           colList.value.push({
             name: name.indexOf("(") > -1 ? name.split("(")[0] : name,
@@ -624,49 +645,51 @@
           Store.setValue("ddrk-collection", JSON.stringify(colList.value));
           Store.setValue(STORE_COLLECTION_KEY, JSON.stringify(colList.value));
         }
-        self.reloadCollectHtml(1, $(this));
+        self.toggleButton($(this), 1);
       });
       $(".post-box").on("click", ".btn_col-remove", function (e) {
-        const href = $(this).parent().parent().data("href");
+        const href = $(this).parent().data("href");
         const index = colList.value.findIndex((item) => item.href === href);
-        if (index !== -1) {
-          colList.value.splice(index, 1);
-          Store.setValue("ddrk-collection", JSON.stringify(colList.value));
-          Store.setValue(STORE_COLLECTION_KEY, JSON.stringify(colList.value));
-        }
-        self.reloadCollectHtml(0, $(this));
+        self.handleColDel(index);
+        self.toggleButton($(this), 0);
       });
     },
-    reloadCollectHtml(tag, tempBtn) {
-      if (tempBtn) {
-        if (tag === 0) {
+    toggleButton(tempBtn, tag) {
+      if (tag === 0) {
+        tempBtn.addClass("btn_col-add");
+        tempBtn.removeClass("btn_col-remove");
+        tempBtn.html(IconCollSlim);
+      } else {
+        tempBtn.addClass("btn_col-remove");
+        tempBtn.removeClass("btn_col-add");
+        tempBtn.html(IconCollFill);
+      }
+    },
+    // 刷新页面收藏按钮
+    reloadCollectButton() {
+      $(".post-box").each(function () {
+        const tempBtn = $(this).find(".btn_col-default");
+        if (!colList.value.find((item) => item.href === $(this).data("href"))) {
           tempBtn.addClass("btn_col-add");
           tempBtn.removeClass("btn_col-remove");
-          tempBtn.text("☆");
+          tempBtn.html(IconCollSlim);
         } else {
           tempBtn.addClass("btn_col-remove");
           tempBtn.removeClass("btn_col-add");
-          tempBtn.text("★");
+          tempBtn.html(IconCollFill);
         }
-      } else {
-        $(".post-box").each(function () {
-          const tempBtn = $(this).find(".btn_col-default");
-          if (
-            !colList.value.find((item) => item.href === $(this).data("href"))
-          ) {
-            tempBtn.addClass("btn_col-add");
-            tempBtn.removeClass("btn_col-remove");
-            tempBtn.text("☆");
-          } else {
-            tempBtn.addClass("btn_col-remove");
-            tempBtn.removeClass("btn_col-add");
-            tempBtn.text("★");
-          }
-        });
+      });
+    },
+    // 删除已收藏
+    handleColDel(index) {
+      if (index !== -1) {
+        colList.value.splice(index, 1);
+        Store.setValue("ddrk-collection", JSON.stringify(colList.value));
+        Store.setValue(STORE_COLLECTION_KEY, JSON.stringify(colList.value));
       }
     },
   };
-  Collection.init();
+  LocalCollection.init();
 
   /**
    * 自动跳转并播放下一集
@@ -694,7 +717,9 @@
         this.nextType === "auto" && this.restoreVideoModel();
       });
       this.player?.on("ended", async () => {
-        // console.log("--------------ended-------------");
+        console.log("ended");
+        console.log("autonext:", Settings.getValueById(1));
+        if (!Settings.getValueById(1)) return;
         this.getCurrentVideoModel(); // 在下一集之前获取当前video状态
         if (this.playerModel.isInPictureInPicture) {
           //在画中画模式z则退出
