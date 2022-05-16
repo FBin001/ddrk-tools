@@ -130,6 +130,19 @@
     .col_list-ul .col_item a {
       color: #20B2AA;
     }
+    .col_list-ul .col_item .col_item-left{
+      vertical-align: middle;
+    }
+    .col_list-ul .col_item .col_item-left svg{
+      vertical-align: text-top;
+    }
+    .col_list-ul .col_item .col_item-left .col_item-tags{
+      display: inline-block;
+      min-width: 23px;
+      text-align: right;
+      padding-right: 4px;
+      box-sizing: content-box;
+    }
     .col_list-ul .col_item .col_item-right{
       display: flex;
       align-items: center;
@@ -142,13 +155,11 @@
       line-height: 1;
     }
     .col_list-ul .col_item .icon_del{
-      border-radius: 100%;
-      width: 16px;
-      height: 16px;
-      line-height: 1;
       display: none;
-      text-align: center;
-      color: #fff;
+      cursor: pointer;
+    }
+    .col_list-ul .col_item .icon_top{
+      display: none;
       cursor: pointer;
     }
     .col_list-ul .col_item:hover {
@@ -158,6 +169,15 @@
     }
     .col_list-ul .col_item:hover .icon_del{
       display: inline-block;
+    }
+    .col_list-ul .col_item:hover .icon_top{
+      display: inline-block;
+    }
+    .col_list-ul .col_item:hover .icon_top_tag{
+      display: none;
+    }
+    .col_list-ul .col_item:hover .col_item-index{
+      display: none;
     }
     #ddrk-tools_pipbtn{
       width: 0;
@@ -399,7 +419,16 @@
     template: `<svg class="col_list_arrow" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="32" height="32"><path d="M746.666667 469.333333H277.333333C159.509333 469.333333 64 373.824 64 256S159.509333 42.666667 277.333333 42.666667h469.333334c117.802667 0 213.333333 95.509333 213.333333 213.333333s-95.530667 213.333333-213.333333 213.333333z m0-384H277.333333a170.666667 170.666667 0 0 0 0 341.333334h469.333334a170.666667 170.666667 0 0 0 0-341.333334zM277.333333 384a128 128 0 1 1 0-256 128 128 0 0 1 0 256z m0-213.333333a85.333333 85.333333 0 1 0 0 170.666666 85.333333 85.333333 0 0 0 0-170.666666z m0 384h469.333334c117.802667 0 213.333333 95.530667 213.333333 213.333333s-95.530667 213.333333-213.333333 213.333333H277.333333C159.509333 981.333333 64 885.802667 64 768s95.509333-213.333333 213.333333-213.333333z m0 384h469.333334a170.666667 170.666667 0 0 0 0-341.333334H277.333333a170.666667 170.666667 0 0 0 0 341.333334z m469.333334-298.666667a128 128 0 0 1 0 256 128 128 0 0 1 0-256z m0 213.333333a85.333333 85.333333 0 1 0 0-170.666666 85.333333 85.333333 0 0 0 0 170.666666z" fill="#2c2c2c" p-id="12986"></path></svg>`,
   });
   const IconDelete = defineComponent({
-    template: `<svg class="icon_del" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="32" height="32"><title>删除</title><path d="M202.666667 256h-42.666667a32 32 0 0 1 0-64h704a32 32 0 0 1 0 64H266.666667v565.333333a53.333333 53.333333 0 0 0 53.333333 53.333334h384a53.333333 53.333333 0 0 0 53.333333-53.333334V352a32 32 0 0 1 64 0v469.333333c0 64.8-52.533333 117.333333-117.333333 117.333334H320c-64.8 0-117.333333-52.533333-117.333333-117.333334V256z m224-106.666667a32 32 0 0 1 0-64h170.666666a32 32 0 0 1 0 64H426.666667z m-32 288a32 32 0 0 1 64 0v256a32 32 0 0 1-64 0V437.333333z m170.666666 0a32 32 0 0 1 64 0v256a32 32 0 0 1-64 0V437.333333z" p-id="2817" fill="#ffffff"></path></svg>`,
+    template: `<svg class="icon_del" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><title>删除</title><path d="M202.666667 256h-42.666667a32 32 0 0 1 0-64h704a32 32 0 0 1 0 64H266.666667v565.333333a53.333333 53.333333 0 0 0 53.333333 53.333334h384a53.333333 53.333333 0 0 0 53.333333-53.333334V352a32 32 0 0 1 64 0v469.333333c0 64.8-52.533333 117.333333-117.333333 117.333334H320c-64.8 0-117.333333-52.533333-117.333333-117.333334V256z m224-106.666667a32 32 0 0 1 0-64h170.666666a32 32 0 0 1 0 64H426.666667z m-32 288a32 32 0 0 1 64 0v256a32 32 0 0 1-64 0V437.333333z m170.666666 0a32 32 0 0 1 64 0v256a32 32 0 0 1-64 0V437.333333z" p-id="2817" fill="#ffffff"></path></svg>`,
+  });
+  const IconTop = defineComponent({
+    template: `<svg class="icon_top" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><title>置顶</title><path d="M555.818667 940.629333c-6.229333 56.746667-85.418667 51.669333-88.533334 0V324.693333l-272.64 263.210667c-42.752 36.778667-93.610667-22.058667-61.824-60.757333 120.704-117.034667 337.322667-326.485333 342.4-331.349334 19.968-21.674667 51.413333-22.784 72.661334 0 39.808 38.442667 334.890667 322.986667 343.808 333.226667 29.952 37.205333-18.432 92.245333-59.733334 61.226667-10.666667-9.002667-276.053333-265.514667-276.053333-265.514667l-0.085333 615.893333zM168.448 42.666667h687.104c14.336 0 21.504 8.704 21.504 26.069333 0 17.408-7.168 26.069333-21.504 26.069333H168.448c-14.336 0-21.504-8.661333-21.504-26.026666 0-17.408 7.168-26.112 21.504-26.112z" p-id="891" fill="#ffffff"></path></svg>`,
+  });
+  const IconTopCancel = defineComponent({
+    template: `<svg class="icon_top" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><title>取消置顶</title><path d="M189.3 115h653.4c12.1 0 22-9.9 22-22v-6c0-12.1-9.9-22-22-22H189.3c-12.1 0-22 9.9-22 22v6c0 12.1 9.9 22 22 22zM152.2 524.5c-16.1 15.5-16.5 41.4-1 57.5s41.4 16.5 57.5 1l150.5-145-57.4-57.6-149.6 144.1zM474.5 918.4c0 22.4 18.3 40.6 40.6 40.6 22.4 0 40.6-18.3 40.6-40.6V635.3l-81.3-81.6v364.7zM872.3 524.5L547.1 211.3c-7.5-9.5-19-15.6-32-15.6h-0.5c-0.8 0-1.6 0-2.4 0.1-10.9-0.6-22 3.2-30.4 11.3l-98.4 94.7 57.4 57.6 33.6-32.3v66l81.3 81.6V332.5l260.1 250.4c16.1 15.5 41.9 15.1 57.5-1 15.6-16 15.1-41.9-1-57.4zM257.1 207c-6.6-6.7-15.4-10-24.1-10-8.7 0-17.4 3.3-24 9.9-13.3 13.3-13.3 34.8-0.1 48.1l538 540c6.6 6.7 15.4 10 24.1 10 8.7 0 17.4-3.3 24-9.9 13.3-13.3 13.3-34.8 0.1-48.1l-538-540z" p-id="18070" fill="#ffffff"></path></svg>`,
+  });
+  const IconTopTag = defineComponent({
+    template: `<svg class="icon_top_tag" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path d="M320.32 704.18c14.058 14.06 14.058 36.854 0 50.913L125.864 949.547c-14.06 14.059-36.853 14.059-50.912 0-14.059-14.059-14.059-36.853 0-50.912l194.454-194.454c14.06-14.059 36.853-14.059 50.912 0z m629.906-396.904c14.818 14.818 13.897 39.112-2 52.766L717.082 558.556l0.667 2.734c27.425 114.91-4.257 237.542-87.885 325.02l-2.745 2.84-2.725 2.759c-14.036 14.195-36.941 14.26-51.057 0.144L126.447 445.162c-14.06-14.059-14.06-36.853 0-50.912 90.247-90.248 220.23-123.274 340.164-91.125l2.991 0.82 195.22-227.306c13.517-15.74 37.463-16.8 52.322-2.445z m-78.374 23.45L694.138 153.011 508.752 368.87a36 36 0 0 1-38.937 10.616l-3.106-1.086c-88.26-30.386-185.781-14.902-260.063 41.255l-2.2 1.682 392.717 392.718 0.874-1.132c54.977-71.991 71.575-166.167 44.804-252.737l-1.07-3.393a36 36 0 0 1 10.96-37.877l219.12-188.19z" p-id="15602" fill="#FA8D14"></path></svg>`,
   });
 
   // 收藏组件
@@ -450,6 +479,24 @@
         },
         { deep: true }
       );
+      const cancelTop = (item) => {
+        item.isTop = false;
+        const newItem = hisList.value.splice(
+          hisList.value.findIndex((ele) => ele.key === item.key),
+          1
+        )[0];
+        const unTopIndex = hisList.value.findIndex((ele) => !ele.isTop);
+        hisList.value.splice(unTopIndex, 0, newItem);
+      };
+      const handleTop = (item) => {
+        item.isTop = true;
+        hisList.value.unshift(
+          hisList.value.splice(
+            hisList.value.findIndex((ele) => ele.key === item.key),
+            1
+          )[0]
+        );
+      };
       return () =>
         h(
           "ul",
@@ -489,8 +536,27 @@
                   },
                 },
                 [
-                  h("span", [
-                    `${index + 1}. `,
+                  h("span", { class: "col_item-left" }, [
+                    h("span", { class: "col_item-tags" }, [
+                      item.isTop
+                        ? h(IconTopCancel, {
+                            onClick: () => cancelTop(item),
+                          })
+                        : h(IconTop, {
+                            onClick: () => handleTop(item),
+                          }),
+                      item.isTop
+                        ? h(IconTopTag)
+                        : h(
+                            "span",
+                            { class: "col_item-index" },
+                            `${
+                              index +
+                              1 -
+                              hisList.value.filter((ele) => ele.isTop).length
+                            }.`
+                          ),
+                    ]),
                     h("a", { href: item.url }, `${item.name} ${season}${ep}`),
                   ]),
                   h(
@@ -506,6 +572,7 @@
                             ep: item.ep,
                             val: item.val,
                           };
+                          cancelTop(item);
                         },
                       }),
                       h(
