@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ddrk低端影视助手
 // @namespace    king
-// @version      0.5.1
+// @version      0.6
 // @description  1.自动播放下一集 2.收藏功能 3.历史观看记录 4.去广告
 // @author       hero-king
 // @match        https://ddrk.me/*
