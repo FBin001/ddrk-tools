@@ -915,7 +915,9 @@
       this.player?.on("ended", async () => {
         console.log("ended");
         console.log("autonext:", Settings.getValueById(1));
+        console.log("lastEp:", this.isLastEP());
         if (!Settings.getValueById(1)) return;
+        if (this.isLastEP()) return;
         this.getCurrentVideoModel(); // 在下一集之前获取当前video状态
         if (this.playerModel.isInPictureInPicture) {
           //在画中画模式z则退出
@@ -993,6 +995,9 @@
         ).handleClick();
         // this.player.controlBar.childNameIndex_.theaterModeToggle.el_.click();
       }
+    },
+    isLastEP() {
+      return $(".wp-playlist-item:last-child").hasClass("wp-playlist-playing");
     },
   };
   autoPlayNext.init();
