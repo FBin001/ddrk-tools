@@ -252,9 +252,11 @@
       let res = this.compareLocalData(jsonList, filterList);
       // console.log("history-----------------", his);
       for (const item of res) {
-        if (!item.name && (item.errorTimes || 0) < 50) {
-          const name = await this.getDramaName(item.url);
+        /** category为修复字段，后续删除判断条件 */
+        if ((!item.name || !item.category) && (item.errorTimes || 0) < 50) {
+          const { name, category } = await this.getDramaName(item.url);
           item.name = name.indexOf("(") > -1 ? name.split("(")[0] : name;
+          item.category = category;
           if (!name) {
             // 记录该记录请求失败次数
             item.errorTimes = item.errorTimes ? item.errorTimes++ : 1;
@@ -334,6 +336,7 @@
           )
       );
       // console.log("-----差集-----", minus);
+      // 更新已有时间
       const resultList = myList.map((innerItem) => {
         const ddrkItem =
           ddrkList.find(
@@ -346,7 +349,10 @@
           ...ddrkItem,
         };
       });
-      return [...minus, ...resultList];
+      // 插入
+      const unTopIndex = resultList.findIndex((ele) => !ele.isTop);
+      resultList.splice(unTopIndex, 0, minus);
+      return [].concat.apply([], resultList);
     },
     getDramaName(url) {
       return new Promise((resolve, reject) => {
@@ -362,12 +368,19 @@
           type: "get",
           success: function (result) {
             //成功后回调
-            const name = $(result).find(".post-title").text();
-            resolve(name);
+            const $result = $(result);
+            const name = $result.find(".post-title").text();
+            const types = [];
+            $result
+              .find(".meta_categories .cat-links a")
+              .text(function (index, oldcontent) {
+                types.push(oldcontent);
+              });
+            resolve({ name, category: types.join(",") });
           },
           error: function (e) {
             //失败后回调
-            resolve("");
+            resolve({});
           },
         });
       });
@@ -516,7 +529,11 @@
             })
             .map((item, index) => {
               const season = item.season ? `S${item.season}` : "";
-              const ep = item.ep ? `E${item.ep}` : "";
+              const ep = item.category?.includes("电影")
+                ? ""
+                : item.ep
+                ? `E${item.ep}`
+                : "";
               const hour =
                 parseInt(item.val / 3600) > 0 ? parseInt(item.val / 3600) : 0;
               const min =
@@ -690,7 +707,7 @@
     // console.log("-----------", document.visibilityState);
     if (document.visibilityState == "hidden") {
       //切离该页面时执行
-      // 标签隐藏时自动暂停播放（待开发）
+      // 标签隐藏时自动暂停播放（后续开发）
     } else if (document.visibilityState == "visible") {
       //切换到该页面时执行
       // 刷新历史记录-因为需要和localStorage对比
@@ -730,7 +747,7 @@
     },
     bindEvent() {
       const self = this;
-      // 点击打开新页签--后续添加到设置
+      // 点击打开新页签
       $(".post-box").on("click", ".ddrk-tools__modal", function (e) {
         console.log("opentab: ", Settings.getValueById(2));
         if (Settings.getValueById(2)) {
