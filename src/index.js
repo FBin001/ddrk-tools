@@ -460,16 +460,19 @@
     defaultData: [
       { id: 1, name: "自动播放下一集", val: true },
       { id: 2, name: "点击海报打开新标签", val: true },
+      { id: 3, name: "播放时提示上次观看位置", val: true },
+      { id: 4, name: "开启小窗口播放(脱离可视区域时)", val: true },
     ],
     getData() {
       const localDataStr = Store.getValue(STORE_SETTINGS_KEY);
       if (localDataStr) {
         const localData = JSON.parse(localDataStr);
         return this.defaultData.map((item) => {
-          const localItem = localData.find((ele) => ele.id === item.id) || {};
+          const { val = true } =
+            localData.find((ele) => ele.id === item.id) || {};
           return {
             ...item,
-            ...localItem,
+            val,
           };
         });
       }
@@ -1012,8 +1015,9 @@
       if (unsafeWindow.videojs?.getAllPlayers()[0]) {
         this.initPlayer();
         this.bindEvent();
-        const curPageInfo = this.parseUrl();
         this.recordData = this.getRecord();
+        if (!Settings.getValueById(3)) return;
+        const curPageInfo = this.parseUrl();
         const lastInfo = this.recordData[curPageInfo.enName];
         // console.log("-curInfo--", curPageInfo);
         // console.log("-recordData--", this.recordData);
@@ -1109,7 +1113,6 @@
   watchRecord.init();
 
   /** 小窗播放 */
-
   const PlayInSmallWindow = {
     player: null,
     isPlaying: false,
@@ -1153,6 +1156,7 @@
           // console.log("div在可视范围");
           $("#vjsp").removeClass("ddrk-tools__video-window-small");
         } else if (!$("#vjsp").hasClass("ddrk-tools__video-window-small")) {
+          if (!Settings.getValueById(4)) return;
           $("#vjsp").addClass("ddrk-tools__video-window-small");
         }
       });
