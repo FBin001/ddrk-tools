@@ -187,6 +187,16 @@
       padding: 0;
       border: 0;
     }
+    /** 小窗播放 css */
+    .ddrk-tools__video-window-small{
+      position: fixed !important;
+      right: 5px;
+      bottom: 10px;
+      width: 400px !important;
+      height: 225px !important;
+      padding: 0 !important;
+      z-index: 9;
+    }
 
     /** popper css */
     #msg-box{
@@ -1092,4 +1102,58 @@
     },
   };
   watchRecord.init();
+
+  /** 小窗播放 */
+
+  const PlayInSmallWindow = {
+    player: null,
+    isPlaying: false,
+    offsetTop: 0,
+    eleHeight: 0,
+    init() {
+      this.offsetTop = $(".wp-video-playlist").offset().top;
+      this.eleHeight = $("#vjsp_html5_api").height();
+      this.initPlayer();
+      this.bindEvent();
+    },
+    initPlayer() {
+      this.player = unsafeWindow.videojs?.getAllPlayers()[0];
+      this.player?.on("playing", () => {
+        // console.log("视频播放中");
+        this.isPlaying = true;
+      });
+      this.player?.on("pause", () => {
+        // console.log("视频暂停播放");
+        this.isPlaying = false;
+      });
+      this.player?.on("ended", () => {
+        // console.log("视频播放结束");
+        this.isPlaying = false;
+      });
+    },
+    bindEvent() {
+      $(window).scroll(() => {
+        if (
+          !this.isPlaying &&
+          !$("#vjsp").hasClass("ddrk-tools__video-window-small")
+        ) {
+          return;
+        }
+        //开始监听滚动条
+        const target = this.offsetTop + this.eleHeight;
+        if (
+          target >= $(window).scrollTop() &&
+          this.offsetTop < $(window).scrollTop() + $(window).height()
+        ) {
+          // console.log("div在可视范围");
+          $("#vjsp").removeClass("ddrk-tools__video-window-small");
+        } else if (!$("#vjsp").hasClass("ddrk-tools__video-window-small")) {
+          $("#vjsp").addClass("ddrk-tools__video-window-small");
+        }
+      });
+    },
+  };
+  PlayInSmallWindow.init();
+
+  //window.videojs.getAllPlayers()[0].getMedia() 获取文件
 })();
