@@ -11,7 +11,8 @@
 // @grant        GM_listValues
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @require      http://code.jquery.com/jquery-2.1.1.min.js
+// @require      http://code.jquery.com/jquery-3.3.1.min.js
+// @require      https://unpkg.com/@popperjs/core@2
 // ==/UserScript==
 
 (async function () {
@@ -22,6 +23,7 @@
   const STORE_COLLECTION_KEY = "ddrk-tools-collection";
   const STORE_HITORY_KEY = "ddrk-tools-history";
   const STORE_SETTINGS_KEY = "ddrk-tools-settings";
+  const STORE_RECORD_KEY = "ddrk-tools-play-record";
 
   /** 广告隐藏class */
   const adClass = `<style>
@@ -184,6 +186,62 @@
       height: 0;
       padding: 0;
       border: 0;
+    }
+
+    /** popper css */
+    #msg-box{
+      background-color: #fff;
+      color: #606266;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      box-shadow: 0px 0px 20px rgba(0, 0, 0, .35);
+    }
+    // #msg-box .msg-box_btns{
+    //   text-align: right;
+    // }
+    // #msg-box .msg-box_btns button{
+    //   padding: 5px 12px;
+    //   border-radius: 4px;
+    //   color: #409eff;
+    //   background: #ecf5ff;
+    //   outline: none;
+    //   border: none;
+    //   cursor: pointer;
+    // }
+
+    #msg-box[data-popper-placement^='top'] > #msg-arrow {
+      bottom: -4px;
+    }
+    
+    #msg-box[data-popper-placement^='bottom'] > #msg-arrow {
+      top: -4px;
+    }
+    
+    #msg-box[data-popper-placement^='left'] > #msg-arrow {
+      right: -4px;
+    }
+    
+    #msg-box[data-popper-placement^='right'] > #msg-arrow {
+      left: -4px;
+    }
+
+    #msg-arrow,
+    #msg-arrow::before {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: inherit;
+    }
+
+    #msg-arrow {
+      visibility: hidden;
+    }
+
+    #msg-arrow::before {
+      visibility: visible;
+      content: '';
+      transform: rotate(45deg);
     }
     <style>`;
   $("head").append(mainCss);
@@ -836,7 +894,7 @@
       );
     },
     initPlayer() {
-      this.player = unsafeWindow.videojs.getAllPlayers()[0];
+      this.player = unsafeWindow.videojs?.getAllPlayers()[0];
       console.time("视频源数据加载完成");
       // 监听
       this.player?.one("canplaythrough", async (e) => {
@@ -929,24 +987,109 @@
   };
   autoPlayNext.init();
 
-  // /**
-  //  * 播放页上次观看记录提示
-  //  */
-  // const watchRecord = {
-  //   init() {
-  //     // 有播放器则继续
-  //     if (unsafeWindow.videojs.getAllPlayers()[0]) {
-  //       this.bindEvent();
-  //     }
-  //   },
-  //   bindEvent() {
-  //     $(window).bind("beforeunload", function () {
-  //       // debugger;
-  //       // return "dfdfdsfsfs提示：未保存的内容将会丢失。"; //好像这个提示并没什么用
-  //     });
-  //   },
-  // };
-  // watchRecord.init();
-
-  // 设置 1、自动播放开关，点击打开新页签开关
+  /**
+   * 播放页上次观看记录提示
+   */
+  const watchRecord = {
+    recordData: {},
+    init() {
+      // 有播放器则继续
+      if (unsafeWindow.videojs?.getAllPlayers()[0]) {
+        this.initPlayer();
+        this.bindEvent();
+        const curPageInfo = this.parseUrl();
+        this.recordData = this.getRecord();
+        const lastInfo = this.recordData[curPageInfo.enName];
+        // console.log("-curInfo--", curPageInfo);
+        // console.log("-recordData--", this.recordData);
+        if (
+          lastInfo &&
+          (curPageInfo.season !== lastInfo?.season ||
+            curPageInfo.ep !== lastInfo?.ep)
+        ) {
+          const season = lastInfo.season ? `S${lastInfo.season} - ` : "";
+          const ep = lastInfo.ep ? `E${lastInfo.ep}` : "";
+          this.showMsgBox(
+            "上次观看到：" + `<a href="${lastInfo.href}">${season}${ep}</a>`
+          );
+        }
+      }
+    },
+    initPlayer() {
+      const player = unsafeWindow.videojs?.getAllPlayers()[0];
+      player?.one("canplay", () => this.setRecord());
+    },
+    getRecord() {
+      return JSON.parse(Store.getValue(STORE_RECORD_KEY) || "{}");
+    },
+    setRecord() {
+      const escData = this.parseUrl();
+      // 防止电影和只有一季的保存第一集
+      if (escData.ep > 1 || escData.season >= 1) {
+        this.recordData[escData.enName] = escData;
+        Store.setValue(STORE_RECORD_KEY, JSON.stringify(this.recordData));
+      }
+    },
+    parseUrl() {
+      const info = window.location.pathname.split("/");
+      return {
+        enName: info[1],
+        season:
+          info.length > 3 && !isNaN(info[2])
+            ? info[2]
+            : $(".post-page-numbers").text()
+            ? "1"
+            : "",
+        ep: window.location.search.replace("?ep=", ""),
+        href: window.location.href,
+      };
+    },
+    bindEvent() {
+      // 主动点击下一集
+      $(unsafeWindow.document).on(
+        "click",
+        ".wp-playlist-tracks .wp-playlist-item, icon-angle-right",
+        (e) => this.initPlayer()
+      );
+    },
+    showMsgBox(msg, url) {
+      $("body").append(
+        $(
+          `<div id="msg-box" >
+            <div class="msg-box_wrapper">
+              <div>${msg}</div>
+              <!-- <div class="msg-box_btns"><button data-url="${url}">跳转</button></div> -->
+            </div>
+            <div id="msg-arrow" data-popper-arrow></div>
+          </div>`
+        )
+      );
+      const popover = new Popper.createPopper(
+        $("#vjsp_html5_api")[0],
+        $("#msg-box")[0],
+        {
+          placement: "top",
+          modifiers: [
+            {
+              name: "offset",
+              options: {
+                offset: [0, 10],
+              },
+            },
+            {
+              name: "flip",
+              options: {
+                fallbackPlacements: ["top", "bottom"],
+              },
+            },
+          ],
+        }
+      );
+      setTimeout(() => {
+        popover.destroy();
+        $("#msg-box").remove();
+      }, 8000);
+    },
+  };
+  watchRecord.init();
 })();
