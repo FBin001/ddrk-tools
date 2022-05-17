@@ -223,15 +223,15 @@
     #msg-box[data-popper-placement^='top'] > #msg-arrow {
       bottom: -4px;
     }
-    
+
     #msg-box[data-popper-placement^='bottom'] > #msg-arrow {
       top: -4px;
     }
-    
+
     #msg-box[data-popper-placement^='left'] > #msg-arrow {
       right: -4px;
     }
-    
+
     #msg-box[data-popper-placement^='right'] > #msg-arrow {
       left: -4px;
     }
@@ -322,7 +322,7 @@
       for (const item of res) {
         /** category为修复字段，后续删除判断条件 */
         if ((!item.name || !item.category) && (item.errorTimes || 0) < 50) {
-          const { name, category } = await this.getDramaName(item.url);
+          const { name = "", category } = await this.getDramaName(item.url);
           item.name = name.indexOf("(") > -1 ? name.split("(")[0] : name;
           item.category = category;
           if (!name) {
@@ -1119,10 +1119,13 @@
     offsetTop: 0,
     eleHeight: 0,
     init() {
-      this.offsetTop = $(".wp-video-playlist").offset().top;
-      this.eleHeight = $("#vjsp_html5_api").height();
-      this.initPlayer();
-      this.bindEvent();
+      // 有播放器则继续
+      if (unsafeWindow.videojs?.getAllPlayers()[0]) {
+        this.offsetTop = $(".wp-video-playlist").offset().top;
+        this.eleHeight = $("#vjsp_html5_api").height();
+        this.initPlayer();
+        this.bindEvent();
+      }
     },
     initPlayer() {
       this.player = unsafeWindow.videojs?.getAllPlayers()[0];
