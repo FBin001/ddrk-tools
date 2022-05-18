@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ddrk低端影视助手
 // @namespace    king
-// @version      1.0.2
+// @version      1.1.0
 // @description  1.自动播放下一集 2.收藏功能 3.历史观看记录 4.去广告 5.播放记录 6.小窗口播放
 // @author       hero-king
 // @match        https://ddrk.me/*
@@ -56,6 +56,20 @@
       box-shadow: 4px 0px 8px rgba(0,0,0,0.4);
       line-height: 1;
       user-select:none;
+    }
+    .btn_col-playpage {
+      position: fixed;
+      left: 20px;
+      bottom: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 42px;
+      height: 42px;
+      z-index: 9999;
+      border-radius: 5%;
+      background: rgba(0,0,0,0.5);
+      cursor: pointer; 
     }
     .col_list {
       position: fixed;
@@ -261,7 +275,7 @@
 
   /** pretty-checkbox css */
   $("head").append(
-    '<link href="https://cdn.jsdelivr.net/npm/pretty-checkbox@3.0/dist/pretty-checkbox.min.css" rel="stylesheet">'
+    '<link href="https://cdn.bootcdn.net/ajax/libs/pretty-checkbox/3.0.3/pretty-checkbox.min.css" rel="stylesheet">'
   );
 
   const Common = {
@@ -799,24 +813,24 @@
   const IconStarFill =
     '<svg viewBox="0 0 1071 1024" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><title>已收藏</title><path d="M595.741436 18.32575a97.371215 97.371215 0 0 1 23.150006 23.563834l135.589417 195.61877a48.685607 48.685607 0 0 0 27.823824 19.401215l214.411416 55.47725a97.371215 97.371215 0 0 1 54.138395 151.850409l-143.69557 195.910885a48.685607 48.685607 0 0 0-9.420665 29.381764l2.677708 216.504896a97.371215 97.371215 0 0 1-126.533894 94.109279l-219.133919-68.817106a48.685607 48.685607 0 0 0-28.821879-0.121714l-231.402693 70.740188a97.371215 97.371215 0 0 1-125.852295-93.111224v-220.78923a48.685607 48.685607 0 0 0-8.203525-27.069198L26.801427 461.194378a97.371215 97.371215 0 0 1 55.574621-148.150304l208.301371-56.158848a48.685607 48.685607 0 0 0 26.82577-18.573559l142.332373-197.809623a97.371215 97.371215 0 0 1 135.905874-22.176294z m104.1872 535.298254c-37.926088 42.940706-89.16769 64.265002-157.49794 64.265001-68.963163 0-123.564072-21.859838-166.821234-66.090712a48.685607 48.685607 0 0 0-69.620419 68.062479c62.025464 63.437347 141.845517 95.423791 236.465995 95.423791 95.277734 0 173.320763-32.521986 230.453323-97.249501a48.685607 48.685607 0 0 0-73.004068-64.411058z" p-id="2830" fill="#008080"></path></svg>';
   const LocalCollection = {
+    playPageHref: "",
     init() {
       const modal = $(
         `<a class='ddrk-tools__modal' title='ddrk助手功能: 点击打开新标签（可取消）'></a>`
       );
-      const colButton = $(
-        `<span class="btn_col-default btn_col-remove">${IconStarFill}</span>`
-      );
-      $(".post-box").each(function () {
-        const tempBtn = colButton.clone(true);
-        if (!colList.value.find((item) => item.href === $(this).data("href"))) {
-          tempBtn.addClass("btn_col-add");
-          tempBtn.removeClass("btn_col-remove");
-          tempBtn.html(IconStarSlim);
-        }
-        modal.attr("href", $(this).data("href"));
-        $(this).append(modal.clone(true));
-        $(this).append(tempBtn);
-      });
+      if ($(".post-box").length) {
+        $(".post-box").each(function () {
+          modal.attr("href", $(this).data("href"));
+          $(this).append(modal.clone(true));
+        });
+      } else {
+        this.playPageHref =
+          window.location.origin +
+          "/" +
+          window.location.pathname.split("/")[1] +
+          "/";
+      }
+      this.reloadCollectButton();
       this.bindEvent();
     },
     bindEvent() {
@@ -855,6 +869,27 @@
         self.handleColDel(index);
         self.toggleButton($(this), 0);
       });
+      // 播放页点击
+      $("#ddrk-tools").on("click", ".btn_col-remove", function (e) {
+        const index = colList.value.findIndex(
+          (item) => item.href === self.playPageHref
+        );
+        self.handleColDel(index);
+        self.toggleButton($(this), 0);
+      });
+      $("#ddrk-tools").on("click", ".btn_col-add", function (e) {
+        const name = $(".post-title").text();
+        if (!colList.value.find((item) => item.href === self.playPageHref)) {
+          colList.value.push({
+            name: name.indexOf("(") > -1 ? name.split("(")[0] : name,
+            href: self.playPageHref,
+          });
+          /** 一个月后常量替换该字段， 当前版本0.5 */
+          Store.setValue("ddrk-collection", JSON.stringify(colList.value));
+          Store.setValue(STORE_COLLECTION_KEY, JSON.stringify(colList.value));
+        }
+        self.toggleButton($(this), 1);
+      });
     },
     toggleButton(tempBtn, tag) {
       if (tag === 0) {
@@ -869,18 +904,38 @@
     },
     // 刷新页面收藏按钮
     reloadCollectButton() {
-      $(".post-box").each(function () {
-        const tempBtn = $(this).find(".btn_col-default");
-        if (!colList.value.find((item) => item.href === $(this).data("href"))) {
-          tempBtn.addClass("btn_col-add");
-          tempBtn.removeClass("btn_col-remove");
-          tempBtn.html(IconStarSlim);
-        } else {
-          tempBtn.addClass("btn_col-remove");
-          tempBtn.removeClass("btn_col-add");
-          tempBtn.html(IconStarFill);
+      const self = this;
+      if ($(".post-box").length) {
+        $(".post-box").each(function () {
+          let tempBtn = $(this).find(".btn_col-default");
+          if (!tempBtn.length) {
+            tempBtn = $(
+              `<span class="btn_col-default btn_col-remove">${IconStarFill}</span>`
+            );
+            $(this).append(tempBtn);
+          }
+          if (
+            !colList.value.find((item) => item.href === $(this).data("href"))
+          ) {
+            self.toggleButton(tempBtn, 0);
+          } else {
+            self.toggleButton(tempBtn, 1);
+          }
+        });
+      } else {
+        let tempBtn = $(".btn_col-playpage");
+        if (!tempBtn.length) {
+          tempBtn = $(
+            `<span class="btn_col-playpage btn_col-remove">${IconStarFill}</span>`
+          );
+          $("#ddrk-tools").append(tempBtn);
         }
-      });
+        if (!colList.value.find((item) => item.href === this.playPageHref)) {
+          self.toggleButton(tempBtn, 0);
+        } else {
+          self.toggleButton(tempBtn, 1);
+        }
+      }
     },
     // 删除已收藏
     handleColDel(index) {
