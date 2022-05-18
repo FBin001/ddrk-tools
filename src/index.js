@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ddrk低端影视助手
 // @namespace    king
-// @version      1.1.0
+// @version      1.1.1
 // @description  1.自动播放下一集 2.收藏功能 3.历史观看记录 4.去广告 5.播放记录 6.小窗口播放
 // @author       hero-king
 // @match        https://ddrk.me/*
@@ -12,11 +12,12 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @require      http://code.jquery.com/jquery-3.3.1.min.js
-// @require      https://unpkg.com/@popperjs/core@2
 // ==/UserScript==
 
 (async function () {
   "use strict";
+  // @require      https://unpkg.com/@popperjs/core@2
+  // @require      https://unpkg.com/popper.js
   // @require      https://unpkg.com/eruda@2.3.3/eruda.js
   // eruda.init();
 
@@ -298,8 +299,16 @@
         $.getScript("https://unpkg.com/vue@3.2.33/dist/vue.global.js", resolve);
       });
     },
+    getPopper() {
+      return new Promise((resolve) => {
+        $.getScript("https://unpkg.com/@popperjs/core@2", resolve);
+      });
+    },
     isMobile() {
       return /Mobi|Android|iPhone/i.test(navigator.userAgent);
+    },
+    unsafeWindow() {
+      return this.isMobile() ? window : unsafeWindow;
     },
   };
 
@@ -965,7 +974,7 @@
       );
     },
     initPlayer() {
-      this.player = unsafeWindow.videojs?.getAllPlayers()[0];
+      this.player = Common.unsafeWindow().videojs?.getAllPlayers()[0];
       console.time("视频源数据加载完成");
       // 监听
       this.player?.one("canplaythrough", async (e) => {
@@ -994,7 +1003,7 @@
     },
     bindEvent() {
       // 主动点击下一集
-      $(unsafeWindow.document).on(
+      $(Common.unsafeWindow().document).on(
         "click",
         ".wp-playlist-tracks .wp-playlist-item, icon-angle-right",
         async (e) => {
@@ -1070,7 +1079,7 @@
     recordData: {},
     init() {
       // 有播放器则继续
-      if (unsafeWindow.videojs?.getAllPlayers()[0]) {
+      if (Common.unsafeWindow().videojs?.getAllPlayers()[0]) {
         this.initPlayer();
         this.bindEvent();
         this.recordData = this.getRecord();
@@ -1093,7 +1102,7 @@
       }
     },
     initPlayer() {
-      const player = unsafeWindow.videojs?.getAllPlayers()[0];
+      const player = Common.unsafeWindow().videojs?.getAllPlayers()[0];
       player?.one("canplay", () => this.setRecord());
     },
     getRecord() {
@@ -1123,16 +1132,16 @@
     },
     bindEvent() {
       // 主动点击下一集
-      $(unsafeWindow.document).on(
+      $(Common.unsafeWindow().document).on(
         "click",
         ".wp-playlist-tracks .wp-playlist-item, icon-angle-right",
         (e) => this.initPlayer()
       );
     },
-    showMsgBox(msg, url) {
+    async showMsgBox(msg, url) {
       $("body").append(
         $(
-          `<div id="msg-box" >
+          `<div id="msg-box">
             <div class="msg-box_wrapper">
               <div>${msg}</div>
               <!-- <div class="msg-box_btns"><button data-url="${url}">跳转</button></div> -->
@@ -1141,6 +1150,9 @@
           </div>`
         )
       );
+      if (!window.Popper) {
+        await Common.getPopper();
+      }
       const popover = new Popper.createPopper(
         $("#vjsp_html5_api")[0],
         $("#msg-box")[0],
@@ -1178,7 +1190,7 @@
     eleHeight: 0,
     init() {
       // 有播放器则继续
-      if (unsafeWindow.videojs?.getAllPlayers()[0]) {
+      if (Common.unsafeWindow().videojs?.getAllPlayers()[0]) {
         this.offsetTop = $(".wp-video-playlist").offset().top;
         this.eleHeight = $("#vjsp_html5_api").height();
         this.initPlayer();
@@ -1189,7 +1201,7 @@
       }
     },
     initPlayer() {
-      this.player = unsafeWindow.videojs?.getAllPlayers()[0];
+      this.player = Common.unsafeWindow().videojs?.getAllPlayers()[0];
       this.player?.on("playing", () => {
         // console.log("视频播放中");
         this.isPlaying = true;
