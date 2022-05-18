@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ddrk低端影视助手
 // @namespace    king
-// @version      1.0.1
+// @version      1.0.2
 // @description  1.自动播放下一集 2.收藏功能 3.历史观看记录 4.去广告 5.播放记录 6.小窗口播放
 // @author       hero-king
 // @match        https://ddrk.me/*
@@ -196,6 +196,9 @@
       height: 225px !important;
       padding: 0 !important;
       z-index: 9;
+    }
+    .ddrk-tools__video-placeholder{
+      background: #000;
     }
 
     /** popper css */
@@ -1125,6 +1128,9 @@
         this.eleHeight = $("#vjsp_html5_api").height();
         this.initPlayer();
         this.bindEvent();
+        $(".wp-video-playlist").prepend(
+          $(`<div class="ddrk-tools__video-placeholder" ></div>`)
+        );
       }
     },
     initPlayer() {
@@ -1151,15 +1157,23 @@
           return;
         }
         //开始监听滚动条
-        const target = this.offsetTop + this.eleHeight;
+        const target = this.offsetTop + this.eleHeight * 0.8;
         if (
           target >= $(window).scrollTop() &&
           this.offsetTop < $(window).scrollTop() + $(window).height()
         ) {
           // console.log("div在可视范围");
+          $(".ddrk-tools__video-placeholder").css({
+            width: 0,
+            height: 0,
+          });
           $("#vjsp").removeClass("ddrk-tools__video-window-small");
         } else if (!$("#vjsp").hasClass("ddrk-tools__video-window-small")) {
           if (!Settings.getValueById(4)) return;
+          $(".ddrk-tools__video-placeholder").css({
+            width: $("#vjsp").outerWidth(),
+            height: $("#vjsp").outerHeight(),
+          });
           $("#vjsp").addClass("ddrk-tools__video-window-small");
         }
       });
