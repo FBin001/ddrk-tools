@@ -70,7 +70,7 @@
       z-index: 9999;
       border-radius: 5%;
       background: rgba(0,0,0,0.5);
-      cursor: pointer; 
+      cursor: pointer;
     }
     .col_list {
       position: fixed;
@@ -276,7 +276,7 @@
 
   /** pretty-checkbox css */
   $("head").append(
-    '<link href="https://cdn.bootcdn.net/ajax/libs/pretty-checkbox/3.0.3/pretty-checkbox.min.css" rel="stylesheet">'
+    `<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pretty-checkbox/3.0.3/pretty-checkbox.min.css" integrity="sha512-kz4Ae66pquz4nVE5ytJyKfPDkQyHSggaDtT1v8oLfOd8bB+ZgZXNLaxex99MNu4fdCsWmi58mhLtfGk5RgfcOw==" crossorigin="anonymous" referrerpolicy="no-referrer" />`
   );
 
   const Common = {
