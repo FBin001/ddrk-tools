@@ -997,6 +997,7 @@
         this.handleToNext();
         this.nextType = "auto";
         await Common.sleep(200);
+        watchRecord.initPlayer();
         this.initPlayer();
         this.handleToPlay();
       });
