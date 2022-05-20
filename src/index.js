@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ddrk低端影视助手
 // @namespace    king
-// @version      1.1.2
+// @version      1.1.3
 // @description  1.自动播放下一集 2.收藏功能 3.历史观看记录 4.去广告 5.播放记录 6.小窗口播放
 // @author       hero-king
 // @match        https://ddrk.me/*
@@ -23,8 +23,11 @@
 
   const STORE_COLLECTION_KEY = "ddrk-tools-collection";
   const STORE_HITORY_KEY = "ddrk-tools-history";
+  const STORE_RESUME_KEY = "ddrk-tools-resume";
   const STORE_SETTINGS_KEY = "ddrk-tools-settings";
   const STORE_RECORD_KEY = "ddrk-tools-play-record";
+
+  const TIME_END = 215999; //单位：秒(s)，59:59:59
 
   /** 广告隐藏class */
   const adClass = `<style>
@@ -339,12 +342,25 @@
       if (jsonText) {
         jsonList = JSON.parse(jsonText);
       }
-
       const localData = this.getLocalStorageData();
-      const his = this.formatLocalData(localData);
-      const filterList = this.filterLocalData(his);
+      // console.log(localData);
+      const newhis = localData.filter(
+        (item) => item.key.indexOf("videojs-resume:") === 0
+      );
+      const oldhis = JSON.parse(Store.getValue(STORE_RESUME_KEY) || "[]");
+      // 差集
+      const minus = newhis.filter(
+        (newItem) =>
+          !oldhis.some(
+            (oldItem) =>
+              oldItem.key === newItem.key && oldItem.val === newItem.val
+          )
+      );
+      // console.log("minus", minus);
+      const minushis = this.formatLocalData(minus);
+      const filterList = this.filterLocalData(minushis);
+      // console.log("filterListMinus", filterList);
       let res = this.compareLocalData(jsonList, filterList);
-      // console.log("history-----------------", his);
       for (const item of res) {
         /** category为修复字段，后续删除判断条件 */
         if ((!item.name || !item.category) && (item.errorTimes || 0) < 50) {
@@ -361,6 +377,7 @@
       res = res.filter((item) => item.name);
       Store.setValue("ddrk-history", JSON.stringify(res));
       Store.setValue(STORE_HITORY_KEY, JSON.stringify(res));
+      Store.setValue(STORE_RESUME_KEY, JSON.stringify(newhis));
       return res;
     },
     getLocalStorageData: function () {
@@ -379,7 +396,21 @@
       }
       return arr;
     },
-    // 去重
+    // 格式化
+    formatLocalData(local) {
+      const history = local.map((item) => {
+        const info = item.key.split("/");
+        return {
+          ...item,
+          url: item.key.split(":")[1],
+          enName: info[1],
+          season: info.length > 3 && !isNaN(info[2]) ? info[2] : "",
+          ep: info.at(-1).replace("?ep=", ""),
+        };
+      });
+      return history;
+    },
+    // 去重 并取最大ep
     filterLocalData(params) {
       const result = params.reduce((res, cur) => {
         const innerItem = res.find(
@@ -402,22 +433,6 @@
         }
       }, []);
       return result;
-    },
-    // 格式化
-    formatLocalData(local) {
-      const history = local
-        .filter((item) => item.key.indexOf("videojs-resume:") === 0)
-        .map((item) => {
-          const info = item.key.split("/");
-          return {
-            ...item,
-            url: item.key.split(":")[1],
-            enName: info[1],
-            season: info.length > 3 && !isNaN(info[2]) ? info[2] : "",
-            ep: info.at(-1).replace("?ep=", ""),
-          };
-        });
-      return history;
     },
     // 对比
     compareLocalData(myList, ddrkList) {
@@ -808,10 +823,10 @@
     } else if (document.visibilityState == "visible") {
       //切换到该页面时执行
       // 刷新历史记录-因为需要和localStorage对比
-      hisList.value = await LocalHistory.getLocalHistory();
       settingsList.value = Settings.getData();
       colList.value = JSON.parse(Store.getValue("ddrk-collection") || "[]");
       LocalCollection.reloadCollectButton();
+      hisList.value = await LocalHistory.getLocalHistory();
     }
   });
   /**
@@ -987,7 +1002,7 @@
         console.log("autonext:", Settings.getValueById(1));
         console.log("lastEp:", this.isLastEP());
         if (!Settings.getValueById(1)) return;
-        if (this.isLastEP()) return;
+        if (this.isLastEP()) return this.setResume(TIME_END);
         this.getCurrentVideoModel(); // 在下一集之前获取当前video状态
         if (this.playerModel.isInPictureInPicture) {
           //在画中画模式z则退出
@@ -1039,10 +1054,7 @@
         this.player.resumeModal.childNameIndex_.modalButtons.childNameIndex_.resumeButton.el_.click();
       } else {
         this.player.bigPlayButton?.el_.click(); //播放按钮
-        localStorage.setItem(
-          window.location.href.replace("https://ddrk.me", "videojs-resume:"),
-          0
-        );
+        this.setResume(0);
       }
     },
     async restoreVideoModel() {
@@ -1069,6 +1081,12 @@
     },
     isLastEP() {
       return $(".wp-playlist-item:last-child").hasClass("wp-playlist-playing");
+    },
+    setResume(value = 0) {
+      localStorage.setItem(
+        window.location.href.replace("https://ddrk.me", "videojs-resume:"),
+        value
+      );
     },
   };
   autoPlayNext.init();
