@@ -212,8 +212,8 @@
       position: fixed !important;
       right: 5px;
       bottom: 10px;
-      width: 400px !important;
-      height: 225px !important;
+      width: 30vw !important;
+      height: 16.875vw !important;
       padding: 0 !important;
       z-index: 9;
     }
@@ -973,7 +973,7 @@
   };
   LocalCollection.init();
 
-  await Common.sleep(200); // 等待video初始化
+  await Common.sleep(50); // 等待video初始化
 
   /**
    * 自动跳转并播放下一集
