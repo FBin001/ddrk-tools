@@ -12,7 +12,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @require      http://code.jquery.com/jquery-3.3.1.min.js
-// @require      https://raw.githubusercontent.com/lihengdao666/Modify-Tampermonkey-Libs/master/vue.js
+// @require      https://cdn.staticfile.org/vue/3.2.33/vue.global.min.js
 // @require      https://cdn.staticfile.org/popper.js/2.11.5/umd/popper.min.js
 // ==/UserScript==
 
@@ -30,6 +30,10 @@
   const STORE_RECORD_KEY = "ddrk-tools-play-record";
 
   const TIME_END = 215999; //单位：秒(s)，59:59:59
+
+  const WD = window.unsafeWindow || document.defaultView || window;
+  WD.Vue = Vue
+  WD.Popper = Popper
 
   /** 广告隐藏class */
   const adClass = `<style>
@@ -301,42 +305,22 @@
         });
       });
     },
-    getVue() {
-      // 加载vuejs
-      return new Promise((resolve) => {
-        $.getScript(
-          "https://cdn.staticfile.org/vue/3.2.33/vue.global.min.js",
-          resolve
-        );
-      });
-    },
-    getPopper() {
-      return new Promise((resolve) => {
-        $.getScript(
-          "https://cdn.staticfile.org/popper.js/2.11.5/umd/popper.min.js",
-          resolve
-        );
-      });
-    },
     isMobile() {
       return /Mobi|Android|iPhone/i.test(navigator.userAgent);
-    },
-    unsafeWindow() {
-      return this.isMobile() ? window : unsafeWindow;
-    },
+    }
   };
 
   const Store = {
     setValue: function (key, value) {
       // 兼容移动端
-      Common.isMobile()
-        ? localStorage.setItem(key, value)
-        : GM_setValue(key, value);
+      window.GM_setValue
+        ? GM_setValue(key, value)
+        : localStorage.setItem(key, value);
     },
     getValue: function (key) {
-      return Common.isMobile()
-        ? localStorage.getItem(key)
-        : GM_getValue(key) || localStorage.getItem(key);
+      return window.GM_getValue
+        ? GM_getValue(key) || localStorage.getItem(key)
+        : localStorage.getItem(key);
     },
     listValues: function () {
       return GM_listValues();
@@ -530,7 +514,6 @@
 
   // 等待页面加载完成
   await Common.ready();
-  // await Common.getVue();
 
   // vue容器
   $("body").append($(`<div id="ddrk-tools" ></div>`));
@@ -651,7 +634,7 @@
                 ? item.ep !== item.deleteInfo.ep
                   ? true
                   : item.ep === item.deleteInfo.ep &&
-                    item.val !== item.deleteInfo.val
+                  item.val !== item.deleteInfo.val
                 : true;
             })
             .map((item, index) => {
@@ -659,14 +642,14 @@
               const ep = item.category?.includes("电影")
                 ? ""
                 : item.ep
-                ? `E${item.ep}`
-                : "";
+                  ? `E${item.ep}`
+                  : "";
               const timeStr =
                 +item.val === TIME_END
                   ? "已看完"
                   : +item.val === 0
-                  ? "未观看"
-                  : formatTime(item.val);
+                    ? "未观看"
+                    : formatTime(item.val);
               return h(
                 "li",
                 {
@@ -680,22 +663,22 @@
                     h("span", { class: "col_item-tags" }, [
                       item.isTop
                         ? h(IconTopCancel, {
-                            onClick: () => cancelTop(item),
-                          })
+                          onClick: () => cancelTop(item),
+                        })
                         : h(IconTop, {
-                            onClick: () => handleTop(item),
-                          }),
+                          onClick: () => handleTop(item),
+                        }),
                       item.isTop
                         ? h(IconTopTag)
                         : h(
-                            "span",
-                            { class: "col_item-index" },
-                            `${
-                              index +
-                              1 -
-                              hisList.value.filter((ele) => ele.isTop).length
-                            }.`
-                          ),
+                          "span",
+                          { class: "col_item-index" },
+                          `${
+                            index +
+                            1 -
+                            hisList.value.filter((ele) => ele.isTop).length
+                          }.`
+                        ),
                     ]),
                     h("a", { href: item.url }, `${item.name} ${season}${ep}`),
                   ]),
@@ -1006,7 +989,7 @@
       );
     },
     initPlayer() {
-      this.player = Common.unsafeWindow().videojs?.getAllPlayers()[0];
+      this.player = WD.videojs?.getAllPlayers()[0];
       console.time("视频源数据加载完成");
       // 监听
       this.player?.one("canplaythrough", async (e) => {
@@ -1036,7 +1019,7 @@
     },
     bindEvent() {
       // 主动点击下一集
-      $(Common.unsafeWindow().document).on(
+      $(WD.document).on(
         "click",
         ".wp-playlist-tracks .wp-playlist-item, icon-angle-right",
         async (e) => {
@@ -1115,7 +1098,7 @@
     recordData: {},
     init() {
       // 有播放器则继续
-      if (Common.unsafeWindow().videojs?.getAllPlayers()[0]) {
+      if (WD.videojs?.getAllPlayers()[0]) {
         this.initPlayer();
         this.bindEvent();
         this.recordData = this.getRecord();
@@ -1138,7 +1121,7 @@
       }
     },
     initPlayer() {
-      const player = Common.unsafeWindow().videojs?.getAllPlayers()[0];
+      const player = WD.videojs?.getAllPlayers()[0];
       player?.one("canplay", () => this.setRecord());
     },
     getRecord() {
@@ -1160,15 +1143,15 @@
           info.length > 3 && !isNaN(info[2])
             ? info[2]
             : $(".post-page-numbers").text()
-            ? "1"
-            : "",
+              ? "1"
+              : "",
         ep: window.location.search.replace("?ep=", ""),
         href: window.location.href,
       };
     },
     bindEvent() {
       // 主动点击下一集
-      $(Common.unsafeWindow().document).on(
+      $(WD.document).on(
         "click",
         ".wp-playlist-tracks .wp-playlist-item, icon-angle-right",
         (e) => this.initPlayer()
@@ -1186,9 +1169,6 @@
           </div>`
         )
       );
-      if (!window.Popper) {
-        await Common.getPopper();
-      }
       const popover = new Popper.createPopper(
         $("#vjsp_html5_api")[0],
         $("#msg-box")[0],
@@ -1226,7 +1206,7 @@
     eleHeight: 0,
     init() {
       // 有播放器则继续
-      if (Common.unsafeWindow().videojs?.getAllPlayers()[0]) {
+      if (WD.videojs?.getAllPlayers()[0]) {
         this.offsetTop = $(".wp-video-playlist").offset().top;
         this.eleHeight = $("#vjsp_html5_api").height();
         this.initPlayer();
@@ -1237,7 +1217,7 @@
       }
     },
     initPlayer() {
-      this.player = Common.unsafeWindow().videojs?.getAllPlayers()[0];
+      this.player = WD.videojs?.getAllPlayers()[0];
       this.player?.on("playing", () => {
         // console.log("视频播放中");
         this.isPlaying = true;
