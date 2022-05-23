@@ -12,6 +12,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @require      http://code.jquery.com/jquery-3.3.1.min.js
+// @require      https://raw.githubusercontent.com/lihengdao666/Modify-Tampermonkey-Libs/master/vue.js
+// @require      https://cdn.staticfile.org/popper.js/2.11.5/umd/popper.min.js
 // ==/UserScript==
 
 (async function () {
@@ -299,12 +301,18 @@
     getVue() {
       // 加载vuejs
       return new Promise((resolve) => {
-        $.getScript("https://unpkg.com/vue@3.2.33/dist/vue.global.js", resolve);
+        $.getScript(
+          "https://cdn.staticfile.org/vue/3.2.33/vue.global.min.js",
+          resolve
+        );
       });
     },
     getPopper() {
       return new Promise((resolve) => {
-        $.getScript("https://unpkg.com/@popperjs/core@2", resolve);
+        $.getScript(
+          "https://cdn.staticfile.org/popper.js/2.11.5/umd/popper.min.js",
+          resolve
+        );
       });
     },
     isMobile() {
@@ -528,7 +536,7 @@
 
   // 等待页面加载完成
   await Common.ready();
-  await Common.getVue();
+  // await Common.getVue();
 
   // vue容器
   $("body").append($(`<div id="ddrk-tools" ></div>`));
@@ -971,6 +979,8 @@
     },
   };
   LocalCollection.init();
+
+  await Common.sleep(200); // 等待video初始化
 
   /**
    * 自动跳转并播放下一集
