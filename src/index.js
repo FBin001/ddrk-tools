@@ -176,6 +176,9 @@
       white-space: nowrap;
       line-height: 1;
     }
+    .col_list-ul .col_item .his_time_end{
+      color: #20B2AA;
+    }
     .col_list-ul .col_item .icon_del{
       display: none;
       cursor: pointer;
@@ -622,6 +625,18 @@
           )[0]
         );
       };
+      const formatTime = (time) => {
+        const hour = parseInt(time / 3600) > 0 ? parseInt(time / 3600) : 0;
+        const min =
+          parseInt((time - hour * 3600) / 60) > 0
+            ? parseInt((time - hour * 3600) / 60)
+            : 0;
+        const sec = parseInt(time - hour * 3600 - min * 60);
+        const resultStr = `${hour > 9 ? hour : "0" + hour}:${
+          min > 9 ? min : "0" + min
+        }:${sec > 9 ? sec : "0" + sec}`;
+        return resultStr;
+      };
       return () =>
         h(
           "ul",
@@ -646,16 +661,12 @@
                 : item.ep
                 ? `E${item.ep}`
                 : "";
-              const hour =
-                parseInt(item.val / 3600) > 0 ? parseInt(item.val / 3600) : 0;
-              const min =
-                parseInt((item.val - hour * 3600) / 60) > 0
-                  ? parseInt((item.val - hour * 3600) / 60)
-                  : 0;
-              const sec = parseInt(item.val - hour * 3600 - min * 60);
-              const timeStr = `${hour > 9 ? hour : "0" + hour}:${
-                min > 9 ? min : "0" + min
-              }:${sec > 9 ? sec : "0" + sec}`;
+              const timeStr =
+                +item.val === TIME_END
+                  ? "已看完"
+                  : +item.val === 0
+                  ? "未观看"
+                  : formatTime(item.val);
               return h(
                 "li",
                 {
@@ -708,7 +719,10 @@
                       h(
                         "span",
                         {
-                          class: "his_time",
+                          class: {
+                            his_time: true,
+                            his_time_end: +item.val === TIME_END,
+                          },
                         },
                         timeStr
                       ),
