@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ddrk低端影视助手
 // @namespace    king
-// @version      1.1.3
+// @version      1.1.4
 // @description  1.自动播放下一集 2.收藏功能 3.历史观看记录 4.去广告 5.播放记录 6.小窗口播放
 // @author       hero-king
 // @match        https://ddrk.me/*
@@ -414,6 +414,7 @@
           enName: info[1],
           season: info.length > 3 && !isNaN(info[2]) ? info[2] : "",
           ep: info.at(-1).replace("?ep=", ""),
+          t: Date.now(),
         };
       });
       return history;
@@ -443,43 +444,33 @@
       return result;
     },
     // 对比
-    compareLocalData(myList, ddrkList) {
-      // 差集
-      const minus = ddrkList.filter(
-        (ddrkItem) =>
-          !myList.some(
-            (item) =>
-              item.enName === ddrkItem.enName && item.season === ddrkItem.season
-          )
-      );
-      // console.log("-----差集-----", minus);
-      // 更新已有时间
-      const resultList = myList.map((innerItem) => {
-        const ddrkItem =
-          ddrkList.find(
-            (item) =>
-              item.enName === innerItem.enName &&
-              item.season === innerItem.season
-          ) || {};
-        return {
-          ...innerItem,
-          ...ddrkItem,
-        };
+    compareLocalData(myList, updateList) {
+      const unTopIndex = myList.findIndex((ele) => !ele.isTop);
+      // 差集（优先）
+      const difference = [];
+      updateList.forEach((updateItem) => {
+        const index = myList.findIndex(
+          (item) =>
+            item.enName === updateItem.enName &&
+            item.season === updateItem.season
+        );
+        if (index !== -1) {
+          const tempItem = {
+            ...myList[index],
+            ...updateItem,
+          };
+          myList.splice(index, 1); // 删除
+          myList.splice(unTopIndex, 0, tempItem); // 新增
+        } else {
+          difference.push(updateItem);
+        }
       });
-      // 插入
-      const unTopIndex = resultList.findIndex((ele) => !ele.isTop);
-      resultList.splice(unTopIndex, 0, minus);
-      return [].concat.apply([], resultList);
+      // 插入差集
+      myList.splice(unTopIndex, 0, difference);
+      return [].concat.apply([], myList);
     },
     getDramaName(url) {
       return new Promise((resolve, reject) => {
-        // $.get(`https://ddrk.me${url}`, function (result) {
-        //   console.log(result);
-        //   const name = $(result).find(".post-title").text();
-        //   resolve(name);
-        // }).error(function (XMLHttpRequest, textStatus, errorThrown) {
-        //   console.log(XMLHttpRequest, textStatus, errorThrown);
-        // });
         $.ajax({
           url: `https://ddrk.me${url}`,
           type: "get",
@@ -613,6 +604,7 @@
         { deep: true }
       );
       const cancelTop = (item) => {
+        if (!item.isTop) return;
         item.isTop = false;
         const newItem = hisList.value.splice(
           hisList.value.findIndex((ele) => ele.key === item.key),
@@ -638,10 +630,10 @@
           },
           hisList.value
             .filter((item) => {
-              // 对比第几集有没有变大
-              // 没有变大就对比观看时间有没有变化
+              // 对比集数有没有变化
+              // 没有变化就对比观看时间有没有变化
               return item.deleteInfo
-                ? item.ep > item.deleteInfo.ep
+                ? item.ep !== item.deleteInfo.ep
                   ? true
                   : item.ep === item.deleteInfo.ep &&
                     item.val !== item.deleteInfo.val
@@ -708,6 +700,7 @@
                           item.deleteInfo = {
                             ep: item.ep,
                             val: item.val,
+                            t: Date.now(),
                           };
                           cancelTop(item);
                         },
