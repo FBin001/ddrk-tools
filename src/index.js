@@ -70,7 +70,21 @@
     .btn_col-playpage {
       position: fixed;
       left: 20px;
-      bottom: 60px;
+      bottom: 70px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 42px;
+      height: 42px;
+      z-index: 9999;
+      border-radius: 5%;
+      background: rgba(0,0,0,0.5);
+      cursor: pointer;
+    }
+    .btn_download {
+      position: fixed;
+      left: 20px;
+      bottom: 20px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -1241,14 +1255,65 @@
   };
   PlayInSmallWindow.init();
 
-  // $(".wp-video-playlist").prepend(
-  //   $(`<button class="ddrk-tools__video-download" >下载</button>`)
-  // );
-  // $(".ddrk-tools__video-download").on("click", function (e) {
-  //   const media = WD.videojs?.getAllPlayers()[0].getMedia();
-  //   if (media.src.length) {
-  //     GM_download(media.src[0].src, "test.mp4");
-  //   }
-  // });
-  //window.videojs.getAllPlayers()[0].getMedia() 获取文件
+  // 监听路由变化
+  if (history.replaceState != null) {
+    let _replaceState = history.replaceState;
+    history.replaceState = function () {
+      // setTimeout(() => {
+      //   console.log(
+      //     "--------------replaceState------------------------",
+      //     _replaceState
+      //   );
+      // }, 300);
+      return _replaceState.apply(history, arguments);
+    };
+  }
+
+  // 视频下载
+  const IconDownload = `<svg  viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><path d="M663.466667 701.866667c-17.066667-17.066667-42.666667-17.066667-59.733334 0L554.666667 750.933333V435.2c0-23.466667-19.2-42.666667-42.666667-42.666667s-42.666667 19.2-42.666667 42.666667v313.6l-46.933333-46.933333c-17.066667-17.066667-42.666667-17.066667-59.733333 0s-17.066667 42.666667 0 59.733333l121.6 121.6c6.4 8.533333 17.066667 12.8 27.733333 12.8s21.333333-4.266667 29.866667-12.8l121.6-121.6c17.066667-14.933333 17.066667-42.666667 0-59.733333z" fill="#008080" p-id="14937"></path><path d="M812.8 388.266667C793.6 241.066667 663.466667 128 512 128S230.4 241.066667 211.2 388.266667c-102.4 19.2-179.2 113.066667-172.8 221.866666 6.4 113.066667 106.666667 200.533333 219.733333 200.533334h64c8.533333 0 10.666667-8.533333 6.4-14.933334-32-32-36.266667-85.333333-6.4-119.466666 23.466667-25.6 57.6-34.133333 89.6-25.6 4.266667 2.133333 10.666667-2.133333 10.666667-8.533334v-206.933333c0-49.066667 36.266667-85.333333 89.6-85.333333s89.6 34.133333 89.6 85.333333v206.933333c0 6.4 4.266667 10.666667 10.666667 8.533334 32-8.533333 66.133333 0 89.6 25.6 29.866667 34.133333 25.6 87.466667-6.4 119.466666-6.4 6.4-2.133333 14.933333 6.4 14.933334h64c115.2 0 213.333333-87.466667 219.733333-200.533334 6.4-108.8-70.4-202.666667-172.8-221.866666z" fill="#008080" p-id="14938"></path></svg>`;
+  const Download = {
+    init() {
+      // 有播放器则继续
+      if (WD.videojs?.getAllPlayers()[0]) {
+        $("#ddrk-tools").append(
+          $(
+            `<span class="btn_download" title="下载视频">${IconDownload}</span>`
+          )
+        );
+        this.bindEvent();
+      }
+    },
+    bindEvent() {
+      $(".btn_download").on("click", (e) => {
+        const media = WD.videojs?.getAllPlayers()[0].getMedia();
+        // 下载字幕
+        if (media.textTracks.length) {
+          const a = document.createElement("a");
+          a.download = "test.ass";
+          a.href = media.textTracks[0].src;
+          a.click();
+          a.remove();
+        }
+        // 下载视频
+        if (media.src.length) {
+          this.download(media.src[0].src, "test.mp4");
+        }
+      });
+    },
+    // 下载函数
+    download(url, name) {
+      fetch(url)
+        .then((res) => res.blob())
+        .then((blob) => {
+          const a = document.createElement("a");
+          const objectUrl = window.URL.createObjectURL(blob);
+          a.download = name;
+          a.href = objectUrl;
+          a.click();
+          window.URL.revokeObjectURL(objectUrl);
+          a.remove();
+        });
+    },
+  };
+  Download.init();
 })();
