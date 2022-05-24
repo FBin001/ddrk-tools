@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ddrk低端影视助手
 // @namespace    king
-// @version      1.2.0
+// @version      1.2.1
 // @description  1.自动播放下一集 2.收藏功能 3.历史观看记录 4.去广告 5.播放记录 6.小窗口播放
 // @author       hero-king
 // @match        https://ddrk.me/*
@@ -32,8 +32,8 @@
   const TIME_END = 215999; //单位：秒(s)，59:59:59
 
   const WD = window.unsafeWindow || document.defaultView || window;
-  WD.Vue = Vue
-  WD.Popper = Popper
+  WD.Vue = Vue;
+  WD.Popper = Popper;
 
   /** 广告隐藏class */
   const adClass = `<style>
@@ -301,7 +301,7 @@
     },
     isMobile() {
       return /Mobi|Android|iPhone/i.test(navigator.userAgent);
-    }
+    },
   };
 
   const Store = {
@@ -440,8 +440,12 @@
             ...myList[index],
             ...updateItem,
           };
-          myList.splice(index, 1); // 删除
-          myList.splice(unTopIndex, 0, tempItem); // 新增
+          if (myList[index].isTop) {
+            myList.splice(index, 1, tempItem); // 替换
+          } else {
+            myList.splice(index, 1); // 删除
+            myList.splice(unTopIndex, 0, tempItem); // 新增
+          }
         } else {
           difference.push(updateItem);
         }
@@ -1237,5 +1241,14 @@
   };
   PlayInSmallWindow.init();
 
+  // $(".wp-video-playlist").prepend(
+  //   $(`<button class="ddrk-tools__video-download" >下载</button>`)
+  // );
+  // $(".ddrk-tools__video-download").on("click", function (e) {
+  //   const media = WD.videojs?.getAllPlayers()[0].getMedia();
+  //   if (media.src.length) {
+  //     GM_download(media.src[0].src, "test.mp4");
+  //   }
+  // });
   //window.videojs.getAllPlayers()[0].getMedia() 获取文件
 })();
