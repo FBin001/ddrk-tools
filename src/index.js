@@ -628,7 +628,7 @@
                 ? item.ep !== item.deleteInfo.ep
                   ? true
                   : item.ep === item.deleteInfo.ep &&
-                  item.val !== item.deleteInfo.val
+                    item.val !== item.deleteInfo.val
                 : true;
             })
             .map((item, index) => {
@@ -636,14 +636,14 @@
               const ep = item.category?.includes("电影")
                 ? ""
                 : item.ep
-                  ? `E${item.ep}`
-                  : "";
+                ? `E${item.ep}`
+                : "";
               const timeStr =
                 +item.val === TIME_END
                   ? "已看完"
                   : +item.val === 0
-                    ? "未观看"
-                    : formatTime(item.val);
+                  ? "未观看"
+                  : formatTime(item.val);
               return h(
                 "li",
                 {
@@ -657,22 +657,22 @@
                     h("span", { class: "col_item-tags" }, [
                       item.isTop
                         ? h(IconTopCancel, {
-                          onClick: () => cancelTop(item),
-                        })
+                            onClick: () => cancelTop(item),
+                          })
                         : h(IconTop, {
-                          onClick: () => handleTop(item),
-                        }),
+                            onClick: () => handleTop(item),
+                          }),
                       item.isTop
                         ? h(IconTopTag)
                         : h(
-                          "span",
-                          { class: "col_item-index" },
-                          `${
-                            index +
-                            1 -
-                            hisList.value.filter((ele) => ele.isTop).length
-                          }.`
-                        ),
+                            "span",
+                            { class: "col_item-index" },
+                            `${
+                              index +
+                              1 -
+                              hisList.value.filter((ele) => ele.isTop).length
+                            }.`
+                          ),
                     ]),
                     h("a", { href: item.url }, `${item.name} ${season}${ep}`),
                   ]),
@@ -1036,10 +1036,7 @@
     async restoreVideoModel() {
       // 恢复上次video模式
       if (this.playerModel.isFullscreen) {
-        // (
-        //   this.player.controlBar.childNameIndex_.fullscreenToggle || {}
-        // ).handleClick();
-        this.player.controlBar.childNameIndex_.fullscreenToggle.el_.click();
+        $(".vjs-fullscreen-control").trigger("click");
       } else if (this.playerModel.isInPictureInPicture) {
         $(".vjs-picture-in-picture-control").trigger("click");
       } else if (this.playerModel.isFullWindow) {
@@ -1113,8 +1110,8 @@
           info.length > 3 && !isNaN(info[2])
             ? info[2]
             : $(".post-page-numbers").text()
-              ? "1"
-              : "",
+            ? "1"
+            : "",
         ep: window.location.search.replace("?ep=", ""),
         href: window.location.href,
       };
@@ -1202,6 +1199,12 @@
       });
     },
     bindEvent() {
+      $(window).resize(() => {
+        this.offsetTop = $(".wp-video-playlist").offset().top;
+        this.eleHeight =
+          $(".ddrk-tools__video-placeholder").height() ||
+          $("#vjsp_html5_api").height();
+      });
       $(window).scroll(() => {
         if (
           !this.isPlaying &&
@@ -1224,7 +1227,7 @@
         } else if (!$("#vjsp").hasClass("ddrk-tools__video-window-small")) {
           if (!Settings.getValueById(4)) return;
           $(".ddrk-tools__video-placeholder").css({
-            width: $("#vjsp").outerWidth(),
+            width: "100%",
             height: $("#vjsp").outerHeight(),
           });
           $("#vjsp").addClass("ddrk-tools__video-window-small");
