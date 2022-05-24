@@ -208,12 +208,6 @@
     .col_list-ul .col_item:hover .col_item-index{
       display: none;
     }
-    #ddrk-tools_pipbtn{
-      width: 0;
-      height: 0;
-      padding: 0;
-      border: 0;
-    }
     /** 小窗播放 css */
     .ddrk-tools__video-window-small{
       position: fixed !important;
@@ -982,11 +976,6 @@
     init() {
       this.initPlayer();
       this.bindEvent();
-      // Videojs requestPictureInPicture()在滚动到顶部和底部时仅工作一次
-      // 解决方案：通过添加按钮模拟点击解决
-      $("body").append(
-        $(`<button id="ddrk-tools_pipbtn" title="切换画中画"></button>`)
-      );
     },
     initPlayer() {
       this.player = WD.videojs?.getAllPlayers()[0];
@@ -1004,11 +993,6 @@
         if (!Settings.getValueById(1)) return;
         if (this.isLastEP()) return this.setResume(TIME_END);
         this.getCurrentVideoModel(); // 在下一集之前获取当前video状态
-        if (this.playerModel.isInPictureInPicture) {
-          //在画中画模式z则退出
-          // document.exitPictureInPicture();
-          $("#ddrk-tools_pipbtn")[0].click();
-        }
         this.handleToNext();
         this.nextType = "auto";
         await Common.sleep(200);
@@ -1028,14 +1012,6 @@
           this.nextType = "hand";
         }
       );
-      // 切换画中画
-      $("body").on("click", "#ddrk-tools_pipbtn", function (e) {
-        if (!document.pictureInPictureElement) {
-          $("#vjsp_html5_api")[0].requestPictureInPicture();
-        } else {
-          document.exitPictureInPicture();
-        }
-      });
     },
     getCurrentVideoModel() {
       // 保存当前video模式
@@ -1065,13 +1041,7 @@
         // ).handleClick();
         this.player.controlBar.childNameIndex_.fullscreenToggle.el_.click();
       } else if (this.playerModel.isInPictureInPicture) {
-        // await Common.sleep(2000);
-        // (
-        //   this.player.controlBar.childNameIndex_.pictureInPictureToggle || {}
-        // ).handleClick();
-        // this.player.controlBar.childNameIndex_.pictureInPictureToggle.el_.click();
-        // $("#vjsp_html5_api")[0].requestPictureInPicture();
-        $("#ddrk-tools_pipbtn")[0].click();
+        $(".vjs-picture-in-picture-control").trigger("click");
       } else if (this.playerModel.isFullWindow) {
         (
           this.player.controlBar.childNameIndex_.theaterModeToggle || {}
