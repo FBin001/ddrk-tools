@@ -1041,7 +1041,14 @@
             eleHeight: 0,
             init() {
                 WD.videojs?.getAllPlayers()[0] && (this.offsetTop = $(".wp-video-playlist").offset().top, 
-                this.eleHeight = $("#vjsp_html5_api").height(), this.initPlayer(), this.bindEvent(), 
+                this.eleHeight = $("#vjsp_html5_api").height(), this.
+                                                   
+                                                   
+                                                   
+                                                   
+                                                   
+                                                   
+                                                   (), this.bindEvent(), 
                 $(".wp-video-playlist").prepend($('<div class="ddrk-tools__video-placeholder" ></div>')));
             },
             initPlayer() {
@@ -1211,14 +1218,14 @@
             }
         };
         (async () => {
-            console.log("\n %c ddrk-tools.js v1.4.5 \n", "color: #fadfa3; background: #030307; padding:5px 0;"), 
+            console.log("\n %c ddrk-tools.js v1.4.6 \n", "color: #fadfa3; background: #030307; padding:5px 0;"), 
             $("head").append('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pretty-checkbox/3.0.3/pretty-checkbox.min.css" integrity="sha512-kz4Ae66pquz4nVE5ytJyKfPDkQyHSggaDtT1v8oLfOd8bB+ZgZXNLaxex99MNu4fdCsWmi58mhLtfGk5RgfcOw==" crossorigin="anonymous" referrerpolicy="no-referrer" />'), 
             await Common.ready();
             const html = `<li><a title="NSFW" href="${window.location.origin}/tag/nsfw/">NSFW</a></li>`;
             if ($("#menu-item-12055").after(html), $("body").append($('<div id="ddrk-tools" ></div>')), 
             window.$vueApp = (0, external_Vue_namespaceObject.createApp)(app), window.$vueApp.mount("#ddrk-tools"), 
             MessageBox.init(), Settings.init(), LocalCollection.init(), CurrentTime.init(), 
-            AdFix.init(), await Common.sleep(500), AutoPlayNext.init(), WatchRecord.init(), 
+            AdFix.init(), await Common.sleep(800), AutoPlayNext.init(), WatchRecord.init(), 
             PlayInSmallWindow.init(), Download.init(), SeekButton.init(), null != history.replaceState) {
                 let _replaceState = history.replaceState;
                 history.replaceState = function() {
